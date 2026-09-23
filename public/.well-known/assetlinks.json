@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mediation.mindfullyevolve.mindfully_evolve_app",
+      "sha256_cert_fingerprints": [
+        "sha256:30:0f:8f:e7:06:62:15:02:5d:b3:b0:9b:46:27:8a:74:4f:9f:1e:e9:bc:1f:92:c5:ea:f3:48:51:d6:36:8c:c1"
+      ]
+    }
+  }
+]

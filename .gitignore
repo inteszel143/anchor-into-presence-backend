@@ -1,0 +1,23 @@
+.env
+.env.*
+!.env.example
+src/lib/serviceAccountKey.json
+
+# Dependencies and build output
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local tooling and logs
+.DS_Store
+.vercel/
+*.log
+
+# Private keys
+*.pem
+*.key
