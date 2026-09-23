@@ -61,3 +61,17 @@ test('provider mismatch remains an explicit rejection', async () => {
   assert.match(response.body.message, /password/);
   assert.equal(api.writes.length, 0);
 });
+
+for (const fcmToken of [undefined, null, '']) {
+  test(`Apple sign-in accepts push token ${String(fcmToken)} for new and existing accounts`, async () => {
+    const appleIdentity = { ...identity, login_medium: 'apple', fcmToken };
+    const existing = route({ _id: 'test-id', provider: 'apple', email: identity.email, fcmToken: 'saved-token' });
+    const response = await existing.post(appleIdentity);
+    assert.equal(response.status, 200);
+    assert.equal(response.body.data.token, 'test-session');
+    assert.equal(existing.writes.length, 0);
+    const newAccount = route(null);
+    assert.equal((await newAccount.post(appleIdentity)).status, 200);
+    assert.equal(newAccount.writes[0].provider, 'apple');
+  });
+}

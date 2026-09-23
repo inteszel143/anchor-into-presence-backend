@@ -36,4 +36,4 @@ const UserPurchaseSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-export const UserPurchase = mongoose.models.UserPurchase || mongoose.model("user_purchase", UserPurchaseSchema);
+export const UserPurchase = mongoose.models.user_purchase || mongoose.model("user_purchase", UserPurchaseSchema);
