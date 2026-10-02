@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Bell, LogOut, User, KeyRound } from "lucide-react";
+import { ChevronDown, LogOut, User, KeyRound } from "lucide-react";
 import { getImageUrl } from "@/lib/getImageUrl";
 
 const AdminHeader = () => {
@@ -79,21 +79,31 @@ const AdminHeader = () => {
                       ref={dropdownRef}
                     >
                       <button
+                        type="button"
                         className="header-link-btn profile_btn"
+                        aria-label="Admin profile options"
+                        aria-expanded={showDropdown}
+                        aria-controls="admin-profile-dropdown"
                         onClick={() => setShowDropdown((prev) => !prev)}
                       >
                         <Image
                           src={getImageUrl(imageUrl) || "/assets/images/default-avatar.png"}
-                          alt="user"
+                          alt=""
                           width={32}
                           height={32}
                           className="rounded-circle"
+                          onError={() => { if (imageUrl) setImageUrl(""); }}
                           unoptimized
+                        />
+                        <ChevronDown
+                          className="profile-chevron"
+                          size={16}
+                          aria-hidden="true"
                         />
                       </button>
 
                       {showDropdown && (
-                        <div className="profile-list-dropdown profile-drop">
+                        <div id="admin-profile-dropdown" className="profile-list-dropdown profile-drop">
                           <ul className="list-unstyled mb-0">
                             <li>
                               <div className="profile-list-preview">
@@ -107,6 +117,7 @@ const AdminHeader = () => {
                                     width={40}
                                     height={40}
                                     className="rounded-circle"
+                                    onError={() => { if (imageUrl) setImageUrl(""); }}
                                     unoptimized
                                   />
                                 </span>

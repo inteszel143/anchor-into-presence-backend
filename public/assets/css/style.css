@@ -778,16 +778,30 @@ span.theme-icon {
 }
 
 .profile_btn {
-  width: 46px;
+  width: auto;
   height: 46px;
-  border-radius: 50%;
+  border-radius: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .profile_btn img {
-  width: 100%;
-  height: 100%;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.profile_btn .profile-chevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.profile_btn[aria-expanded="true"] .profile-chevron {
+  transform: rotate(180deg);
 }
 
 .profile-list-dropdown ul li:not(:last-child) {
@@ -977,14 +991,18 @@ a.profile-links-list:hover span.navicon i {
 .sidebar-logo a.logo {
   width: 100%;
   transition: all .5s ease;
-  display: inline-block;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   text-align: center;
   height: 100%;
 }
 
 .sidebar-logo a.logo img {
-  width: 50%;
-  height: 100%;
+  width: 78px;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
@@ -1150,7 +1168,7 @@ ul.sub-menu-list {
 }
 
 .side-hide .sidebar-logo {
-  padding: 26px 12px;
+  padding: 5px 12px;
 }
 
 .side-hide span.menu_text,

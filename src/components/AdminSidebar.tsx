@@ -67,10 +67,11 @@ export default function AdminSidebar() {
         <div className="sidebar-logo">
           <Link className="logo" href="/admin/users">
             <Image
-              src="/assets/images/logo_image.svg"
-              alt="Logo"
-              width={1}
-              height={1}
+              src="/assets/images/anchor-into-presence-logo.png"
+              alt="Anchor Into Presence"
+              width={2000}
+              height={2000}
+              sizes="78px"
             />
           </Link>
         </div>
