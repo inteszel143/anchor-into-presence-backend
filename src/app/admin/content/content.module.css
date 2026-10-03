@@ -1,0 +1,48 @@
+.page { max-width: 1200px; margin: 0 auto; padding-inline: 32px; color: var(--text-clr, #283c50); }
+.heading { margin-bottom: 28px; }
+.eyebrow { margin: 0 0 8px; color: #687384; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.heading h1 { font-size: 32px; line-height: 1.2; font-weight: 650; margin: 0 0 10px; }
+.subtitle { color: #687384; font-size: 14px; line-height: 1.6; margin: 0; }
+.card { background: white; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; box-shadow: 0 3px 12px #152d4a04; }
+.tabs { display: flex; gap: 8px; padding: 10px 24px 0; border-bottom: 1px solid #e9edf2; background: #fafbfd; }
+.tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 17px 16px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #687384; font-size: 14px; font-weight: 500; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: #0058c9; border-bottom-color: #006cff; }
+.tabs button:hover { background: #f0f4fa; }
+.panel { padding: 28px; }
+.documentHeading { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+.documentIcon { width: 46px; height: 46px; display: grid; place-items: center; flex-shrink: 0; border-radius: 12px; background: #edf3fc; color: #526f97; }
+.documentHeading h2 { font-size: 19px; font-weight: 600; margin: 0 0 6px; }
+.documentHeading p { margin: 0; color: #687384; font-size: 13px; line-height: 1.6; }
+.editor { border: 1px solid #dce2e9; border-radius: 12px; }
+.editor:focus-within { border-color: #8db9f5; box-shadow: 0 0 0 3px #006cff0d; }
+.editor :global(.ql-toolbar.ql-snow) { border: 0; border-bottom: 1px solid #e5e7eb; border-radius: 12px 12px 0 0; background: #f8fafc; padding: 12px 16px; }
+.editor :global(.ql-container.ql-snow) { border: 0; font-size: 15px; }
+.editor :global(.ql-editor) { min-height: 380px; padding: 26px; line-height: 1.85; overflow-wrap: anywhere; }
+.editor :global(.ql-editor.ql-blank::before) { left: 26px; right: 26px; color: #788493; font-style: normal; }
+.editor :global(.ql-editor p) { margin-bottom: 12px; }
+.editor :global(.ql-editor h1), .editor :global(.ql-editor h2), .editor :global(.ql-editor h3) { margin: 16px 0 10px; }
+.editor :global(.ql-tooltip) { max-width: calc(100vw - 80px); white-space: normal; z-index: 2; }
+.footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 28px; border-top: 1px solid #e9edf2; background: #fafbfd; }
+.footer p { color: #687384; font-size: 13px; line-height: 1.6; margin: 0; }
+.save { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; min-height: 44px; border: 0; border-radius: 9px; padding: 11px 18px; background: var(--primary-clr, #006cff); color: white; font-size: 14px; font-weight: 600; cursor: pointer; }
+.save:hover:not(:disabled) { background: #0058d1; }
+.page button:disabled { opacity: .5; cursor: not-allowed; }
+.page button:focus-visible { outline: 3px solid #9bc3ff; outline-offset: 2px; }
+.state { display: flex; min-height: 300px; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 36px 20px; text-align: center; color: #687384; font-size: 14px; }
+.state h3 { color: #283c50; margin: 0; font-size: 18px; font-weight: 600; }
+.state p { margin: 0; }
+.retry { min-height: 44px; padding: 10px 16px; background: white; color: #0058c9; border: 1px solid #dce2e9; border-radius: 8px; cursor: pointer; }
+@media (max-width: 576px) {
+  .page { padding-inline: 16px; }
+  .heading h1 { font-size: 28px; }
+  .tabs { padding: 8px 10px 0; gap: 0; }
+  .tabs button { flex: 1; gap: 6px; padding: 14px 8px; font-size: 12px; }
+  .tabs button svg { flex-shrink: 0; }
+  .panel { padding: 20px 16px; }
+  .documentHeading { align-items: flex-start; gap: 10px; }
+  .documentHeading h2 { font-size: 17px; }
+  .editor :global(.ql-toolbar.ql-snow) { padding: 10px; }
+  .editor :global(.ql-editor) { min-height: 300px; padding: 18px; }
+  .editor :global(.ql-editor.ql-blank::before) { left: 18px; right: 18px; }
+  .footer { flex-direction: column; align-items: stretch; padding: 18px; }
+}
