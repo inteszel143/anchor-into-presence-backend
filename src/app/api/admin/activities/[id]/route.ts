@@ -28,9 +28,18 @@ export async function GET(
     {
       $lookup: {
         from: "categories",
-        localField: "taggedCategories",
+        localField: "category",
         foreignField: "_id",
         as: "taggedCategories",
+        pipeline: [{ $project: { _id: 1, name: 1 } }],
+      },
+    },
+    {
+      $lookup: {
+        from: "tags",
+        localField: "tags",
+        foreignField: "_id",
+        as: "tags",
         pipeline: [{ $project: { _id: 1, name: 1 } }],
       },
     },
@@ -39,6 +48,15 @@ export async function GET(
         name: 1,
         description: 1,
         video: 1,
+        thumbnail: 1,
+        category: 1,
+        tags: 1,
+        contentId: 1,
+        contentType: 1,
+        duration: 1,
+        schedulePublish: 1,
+        scheduleDate: 1,
+        scheduleTime: 1,
         status: 1,
         createdAt: 1,
         taggedCategories: 1,
@@ -78,7 +96,7 @@ export async function PATCH(
   const contentType = formData.get("contentType")?.toString();
   const contentId = formData.get("contentId")?.toString();
   const duration = formData.get("duration")?.toString();
-  const schedulePublish = formData.get("schedulePublish")?.toString();
+  const scheduleDate = formData.get("scheduleDate")?.toString();
 
   let tags: any[] | undefined = undefined;
   if (tagsString !== undefined) {
@@ -131,9 +149,13 @@ export async function PATCH(
     category,
     contentType,
     duration,
-    schedulePublish,
     contentId,
   };
+
+  if (scheduleDate !== undefined) {
+    updatePayload.scheduleDate = scheduleDate;
+    updatePayload.schedulePublish = Boolean(scheduleDate);
+  }
 
   if (tags !== undefined) {
     updatePayload.tags = tags;
@@ -155,6 +177,8 @@ export async function PATCH(
   const updated = await Activity.findByIdAndUpdate(id, updatePayload, {
     new: true,
   });
+
+  if (!updated) return NextResponse.json({ message: "Activity not found" }, { status: 404 });
 
   return NextResponse.json({
     message: "Activity updated successfully",

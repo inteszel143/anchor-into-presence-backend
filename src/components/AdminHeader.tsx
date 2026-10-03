@@ -1,14 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, LogOut, User, KeyRound } from "lucide-react";
 import { getImageUrl } from "@/lib/getImageUrl";
+import { toast } from "react-toastify";
 
 const AdminHeader = () => {
-  const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const [adminName, setAdminName] = useState("");
@@ -55,9 +54,15 @@ const AdminHeader = () => {
     };
   }, [showDropdown]);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    router.push("/admin/login");
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/admin/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Logout failed");
+      for (const key of ["token", "name", "email", "image"]) localStorage.removeItem(key);
+      window.location.assign("/admin/login");
+    } catch {
+      toast.error("Couldn’t log out. Please try again.");
+    }
   };
 
   return (

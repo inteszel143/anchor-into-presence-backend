@@ -51,6 +51,8 @@ export async function PATCH(
       { new: true }
     );
 
+    if (!category) return NextResponse.json({ message: "FAQ not found", status: false }, { status: 404 });
+
     return NextResponse.json({
       message: "Faq updated successfully",
       data: category,

@@ -59,7 +59,7 @@ export default function AdminLoginPage() {
         localStorage.setItem("image", data.admin.image);
 
         toast.success("Login successful!");
-        router.push("/admin/users");
+        router.push("/admin/dashboard");
       } else {
         const errorData = await res.json();
         toast.error(errorData?.message || "Login failed. Please try again.");

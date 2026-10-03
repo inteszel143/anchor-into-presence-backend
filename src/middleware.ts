@@ -9,6 +9,8 @@ export async function middleware(req: NextRequest) {
   // Allow public access to auth routes
   if (
     url === '/admin/login' ||
+    url === '/api/admin/login' ||
+    url === '/api/admin/logout' ||
     url === '/login' ||
     url === '/signup' ||
     url.startsWith('/api/auth') ||
@@ -18,11 +20,15 @@ export async function middleware(req: NextRequest) {
   }
 
   // ✅ Admin panel (web): use cookie-based authentication
-  if (url.startsWith('/admin')) {
+  if (url.startsWith('/admin') || url.startsWith('/api/admin/')) {
+    const isApi = url.startsWith('/api/admin/');
+    const unauthorized = () => isApi
+      ? NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+      : NextResponse.redirect(new URL('/admin/login', req.url));
     const token = req.cookies.get('admin_session')?.value
     if (!token) {
       // If this is a browser page request → redirect
-      if (req.headers.get('accept')?.includes('text/html')) {
+      if (!isApi && req.headers.get('accept')?.includes('text/html')) {
         return NextResponse.redirect(new URL('/admin/login', req.url))
       }
 
@@ -31,10 +37,11 @@ export async function middleware(req: NextRequest) {
     }
 
     try {
+      if (!process.env.JWT_SECRET) throw new Error('Missing JWT secret')
       const { payload } = await jwtVerify(token, JWT_SECRET)
       if (payload.role !== 'admin') throw new Error('Not admin')
     } catch (err) {
-      return NextResponse.redirect(new URL('/admin/login', req.url))
+      return unauthorized()
     }
   }
 

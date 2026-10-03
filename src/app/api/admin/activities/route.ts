@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     {
       $lookup: {
         from: "categories",
-        localField: "taggedCategories",
+        localField: "category",
         foreignField: "_id",
         as: "taggedCategoriesData",
         pipeline: [{ $project: { name: 1 } }],

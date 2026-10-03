@@ -1,286 +1,115 @@
-export default function dashboard() {
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Activity, ArrowRight, Bell, FolderOpen, LifeBuoy, Plus, Users } from "lucide-react";
+import styles from "./dashboard.module.css";
+
+type RecentUser = { _id: string; name: string; email: string; createdAt: string };
+type Overview = { users: number; activities: number; categories: number; support: number; recentUsers: RecentUser[] };
+
+const metrics = [
+  { key: "users", label: "Registered users", href: "/admin/users", icon: Users },
+  { key: "activities", label: "Activities", href: "/admin/activities", icon: Activity },
+  { key: "categories", label: "Categories", href: "/admin/category", icon: FolderOpen },
+  { key: "support", label: "Support tickets", href: "/admin/support", icon: LifeBuoy },
+] as const;
+
+const actions = [
+  { label: "Create an activity", description: "Add a new experience to your library.", href: "/admin/activities/create", icon: Plus },
+  { label: "Send a notification", description: "Share a reminder with your community.", href: "/admin/notification", icon: Bell },
+  { label: "Manage support", description: "Review questions and help your members.", href: "/admin/support", icon: LifeBuoy },
+];
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+export default function DashboardPage() {
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    async function loadOverview() {
+      try {
+        const [users, activities, categories, support] = await Promise.all([
+          "/api/admin/users?limit=5",
+          "/api/admin/activities?limit=1",
+          "/api/admin/category?limit=1",
+          "/api/admin/support?limit=1",
+        ].map(async (url) => {
+          const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+          if (!response.ok) throw new Error("We couldn’t load the dashboard. Please try again.");
+          return response.json();
+        }));
+        if (!controller.signal.aborted) {
+          setOverview({ users: users.total, activities: activities.pagination.total, categories: categories.pagination.total, support: support.total, recentUsers: users.users });
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "We couldn’t load the dashboard.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    loadOverview();
+    return () => controller.abort();
+  }, [refresh]);
+
   return (
-    <>
-      <div className="container">
-        <div className="row">
-          <div className="col-xl-12">
-            <div className="row gx-4 gy-4">
-              <div className="col-sm-6 col-md-4 col-xl-3">
-                <div className="dash-num-info-cards">
-                  <div className="dash-num-info-cards-header">
-                    <div className="num-info-icon-box">
-                      <i data-lucide="users" />
-                    </div>
-                    <div className="num-info-content-box">
-                      <span className="num-values">45667</span>
-                      <h2>Active Users</h2>
-                    </div>
-                  </div>
-                  <div className="dash_progress_status">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <h3 className="mb-0">Active Users</h3>
-                      <div className="dashboard-card-stats">
-                        <span className="dash-stats-icon">
-                          <i data-lucide="trending-up" />
-                        </span>
-                        <p>
-                          <span className="text-green-clr">8.5%</span> Up from
-                          previous week
-                        </p>
-                      </div>
-                    </div>
-                    <div
-                      className="progress"
-                      role="progressbar"
-                      aria-label="Success example"
-                      aria-valuenow={75}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className="progress-bar bg-green-clr"
-                        style={{ width: "75%" }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="col-sm-6 col-md-4 col-xl-3">
-                <div className="dash-num-info-cards">
-                  <div className="dash-num-info-cards-header">
-                    <div className="num-info-icon-box">
-                      <i data-lucide="shield-alert" />
-                    </div>
-                    <div className="num-info-content-box">
-                      <span className="num-values">65</span>
-                      <h2>Safety Meetings</h2>
-                    </div>
-                  </div>
-                  <div className="dash_progress_status">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <h3 className="mb-0">Safety Meetings</h3>
-                      <div className="dashboard-card-stats">
-                        <span className="dash-stats-icon">
-                          <i data-lucide="trending-down" />
-                        </span>
-                        <p>
-                          <span className="text-red-clr">4.84%</span> Down from
-                          yesterday
-                        </p>
-                      </div>
-                    </div>
-                    <div
-                      className="progress"
-                      role="progressbar"
-                      aria-label="Success example"
-                      aria-valuenow={25}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className="progress-bar bg-red-clr"
-                        style={{ width: "25%" }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="row mt-4">
-          <div className="col-xl-12">
-            <div className="row row-cols-1 row-cols-sm-2 row-cols-lg-3 gx-sm-4 gx-lg-4 gy-4">
-              <div className="col">
-                <div className="dash-graph-cards-wrapper">
-                  <div className="dash-graph-cards">
-                    <div className="dash-graph-header">
-                      <div className="dash-graph-title-flex">
-                        <div className="dash-graph-icon-box">
-                          <i data-lucide="Presentation" />
-                        </div>
-                        <div className="graph_card_info">
-                          <h2>Total number of meetings</h2>
-                        </div>
-                      </div>
-                      <div className="dash-graph-count">
-                        <span className="dash-total-value">265</span>
-                      </div>
-                    </div>
-                    <div className="graph-blk">
-                      <div className="chart_blk">
-                        <div id="timeline-chart-1" />
-                      </div>
-                      <div className="dashboard-card-stats">
-                        <span className="dash-stats-icon">
-                          <i data-lucide="trending-up" />
-                        </span>
-                        <p>
-                          <span className="text-green-clr">8.5%</span> Up from
-                          previous week
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="dash-graph-cards">
-                    <div className="dash-graph-header">
-                      <div className="dash-graph-title-flex">
-                        <div className="dash-graph-icon-box">
-                          <i data-lucide="Presentation" />
-                        </div>
-                        <div className="graph_card_info">
-                          <h2>Today’s meeting</h2>
-                        </div>
-                      </div>
-                      <div className="dash-graph-count">
-                        <span className="dash-total-value">85</span>
-                      </div>
-                    </div>
-                    <div className="graph-blk">
-                      <div className="chart_blk">
-                        <div id="timeline-chart-2" />
-                      </div>
-                      <div className="dashboard-card-stats">
-                        <span className="dash-stats-icon">
-                          <i data-lucide="trending-down" />
-                        </span>
-                        <p>
-                          <span className="text-red-clr">8.5%</span> Up from
-                          previous week
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="col">
-                <div className="dash-graph-cards-wrapper">
-                  <div className="dash-graph-cards">
-                    <div className="dash-graph-header">
-                      <div className="dash-graph-title-flex">
-                        <div className="dash-graph-icon-box">
-                          <i data-lucide="file-search" />
-                        </div>
-                        <div className="graph_card_info">
-                          <h2>Total number of inspection request</h2>
-                        </div>
-                      </div>
-                      <div className="dash-graph-count">
-                        <span className="dash-total-value">1265</span>
-                      </div>
-                    </div>
-                    <div className="graph-blk">
-                      <div className="chart_blk">
-                        <div id="timeline-chart-3" />
-                      </div>
-                      <div className="dashboard-card-stats">
-                        <span className="dash-stats-icon">
-                          <i data-lucide="trending-up" />
-                        </span>
-                        <p>
-                          <span className="text-green-clr">8.5%</span> Up from
-                          previous week
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="dash-graph-cards">
-                    <div className="dash-graph-header">
-                      <div className="dash-graph-title-flex">
-                        <div className="dash-graph-icon-box">
-                          <i data-lucide="file-search" />
-                        </div>
-                        <div className="graph_card_info">
-                          <h2>Weekly inspections</h2>
-                        </div>
-                      </div>
-                      <div className="dash-graph-count">
-                        <span className="dash-total-value">805</span>
-                      </div>
-                    </div>
-                    <div className="graph-blk">
-                      <div className="chart_blk">
-                        <div id="timeline-chart-4" />
-                      </div>
-                      <div className="dashboard-card-stats">
-                        <span className="dash-stats-icon">
-                          <i data-lucide="trending-up" />
-                        </span>
-                        <p>
-                          <span className="text-green-clr">8.5%</span> Up from
-                          previous week
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="col">
-                <div className="dash-graph-cards-wrapper">
-                  <div className="dash-graph-cards">
-                    <div className="dash-graph-header">
-                      <div className="dash-graph-title-flex">
-                        <div className="dash-graph-icon-box">
-                          <i className="hgi hgi-stroke hgi-installing-updates-02" />
-                        </div>
-                        <div className="graph_card_info">
-                          <h2>Total number of installation</h2>
-                        </div>
-                      </div>
-                      <div className="dash-graph-count">
-                        <span className="dash-total-value">65</span>
-                      </div>
-                    </div>
-                    <div className="graph-blk">
-                      <div className="chart_blk">
-                        <div id="timeline-chart-5" />
-                      </div>
-                      <div className="dashboard-card-stats">
-                        <span className="dash-stats-icon">
-                          <i data-lucide="trending-up" />
-                        </span>
-                        <p>
-                          <span className="text-green-clr">8.5%</span> Up from
-                          previous week
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="dash-graph-cards">
-                    <div className="dash-graph-header">
-                      <div className="dash-graph-title-flex">
-                        <div className="dash-graph-icon-box">
-                          <i className="hgi hgi-stroke hgi-installing-updates-02" />
-                        </div>
-                        <div className="graph_card_info">
-                          <h2>Weekly installations</h2>
-                        </div>
-                      </div>
-                      <div className="dash-graph-count">
-                        <span className="dash-total-value">417</span>
-                      </div>
-                    </div>
-                    <div className="graph-blk">
-                      <div className="chart_blk">
-                        <div id="timeline-chart-6" />
-                      </div>
-                      <div className="dashboard-card-stats">
-                        <span className="dash-stats-icon">
-                          <i data-lucide="trending-up" />
-                        </span>
-                        <p>
-                          <span className="text-green-clr">8.5%</span> Up from
-                          previous week
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className={styles.page}>
+      <div className={styles.heading}>
+        <p className={styles.eyebrow}>Overview</p>
+        <h1>Dashboard</h1>
+        <p>A look at your community and the content that brings them back.</p>
       </div>
-    </>
+
+      {error && <div className={styles.error} role="alert"><span>{error}</span><button type="button" onClick={() => setRefresh(value => value + 1)}>Try again</button></div>}
+      <div className={styles.metrics} aria-busy={loading}>
+        {metrics.map(({ key, label, href, icon: Icon }) => (
+          <Link key={key} href={href} className={styles.metric}>
+            <span className={styles.icon}><Icon size={21} aria-hidden="true" /></span>
+            <span className={styles.metricLabel}>{label}</span>
+            <strong>{loading || error || !overview ? "—" : overview[key].toLocaleString()}</strong>
+            <span className={styles.metricLink}>View {key === "support" ? "tickets" : key}<ArrowRight size={15} aria-hidden="true" /></span>
+          </Link>
+        ))}
+      </div>
+
+      <div className={styles.columns}>
+        <section className={styles.card} aria-labelledby="recent-users-heading" aria-busy={loading}>
+          <div className={styles.cardHeading}><h2 id="recent-users-heading">Recent users</h2><Link href="/admin/users">View all <ArrowRight size={15} aria-hidden="true" /></Link></div>
+          {loading ? <div className={styles.empty} role="status">Loading your community…</div> : error ? <div className={styles.empty}>Recent users are unavailable. Try loading the dashboard again.</div> : !overview?.recentUsers.length ? <div className={styles.empty}><Users size={28} aria-hidden="true" /><h3>Your community starts here</h3><p>Newly registered users will appear here.</p></div> : (
+            <ul className={styles.userList}>
+              {overview.recentUsers.map(user => (
+                <li key={user._id}>
+                  <span className={styles.avatar} aria-hidden="true">{(user.name || user.email || "U").charAt(0).toUpperCase()}</span>
+                  <div className={styles.identity}><strong>{user.name || "Unnamed user"}</strong><span>{user.email}</span></div>
+                  <span className={styles.date}>Joined {formatDate(user.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={styles.card} aria-labelledby="quick-actions-heading">
+          <div className={styles.cardHeading}><h2 id="quick-actions-heading">Quick actions</h2></div>
+          <div className={styles.actions}>
+            {actions.map(({ label, description, href, icon: Icon }) => (
+              <Link key={href} href={href} className={styles.action}>
+                <span className={styles.icon}><Icon size={19} aria-hidden="true" /></span>
+                <div><strong>{label}</strong><p>{description}</p></div>
+                <ArrowRight size={17} aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }

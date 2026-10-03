@@ -13,6 +13,7 @@ export default function CreateActivityPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     toast.dismiss();
       toast.clearWaitingQueue();
     if (!name || !description) {
@@ -21,6 +22,8 @@ export default function CreateActivityPage() {
     }
 
     setLoading(true);
+    try {
+
 
     const res = await fetch("/api/admin/category/create", {
       method: "POST",
@@ -38,7 +41,11 @@ export default function CreateActivityPage() {
       );
     }
 
-    setLoading(false);
+    } catch {
+      toast.error("Unable to save. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

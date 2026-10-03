@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
       isVerified: true,
       notificationReceive: true,
     }).select("fcmToken");
-    console.log(users)
 
     // 3. Send push notification to each user
     const messages = users.map((user: any) => ({
@@ -60,8 +59,8 @@ export async function POST(req: NextRequest) {
     const failCount = results.length - successCount;
 
     return NextResponse.json({
-      message: `Notification sent successfully.`,
-      data: {},
+      message: `Notification saved. Push delivery: ${successCount} sent, ${failCount} failed.`,
+      data: { sent: successCount, failed: failCount },
       status: true,
     });
   } catch (error) {
