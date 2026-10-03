@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
         description: 1,
         status: 1,
         createdAt: 1,
+        scheduleDate: 1,
         taggedCategoriesData: 1,
       },
     },

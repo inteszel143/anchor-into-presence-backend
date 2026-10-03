@@ -7,10 +7,11 @@ import { ListPlus } from "lucide-react";
 import { toast } from "react-toastify";
 
 type Props = {
-  onAdd: (faq: { question: string; answer: string }) => void;
+  onAdd: (faq: { question: string; answer: string }) => Promise<boolean>;
 };
 
 export default function AddFaqModal({ onAdd }: Props) {
+  const [saving, setSaving] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [errors, setErrors] = useState<{ question: boolean; answer: boolean }>({
@@ -18,7 +19,8 @@ export default function AddFaqModal({ onAdd }: Props) {
     answer: false,
   });
 
-  const handleAdd = (close: () => void) => {
+  const handleAdd = async (close: () => void) => {
+    if (saving) return;
     const isQuestionValid = question.trim().length > 0;
     const isAnswerValid = answer.trim().length > 0;
 
@@ -33,11 +35,14 @@ export default function AddFaqModal({ onAdd }: Props) {
       return;
     }
 
-    onAdd({ question: question.trim(), answer: answer.trim() });
-    setQuestion("");
-    setAnswer("");
-    setErrors({ question: false, answer: false });
-    close();
+    setSaving(true);
+    try {
+      if (!await onAdd({ question: question.trim(), answer: answer.trim() })) return;
+      setQuestion("");
+      setAnswer("");
+      setErrors({ question: false, answer: false });
+      close();
+    } finally { setSaving(false); }
   };
 
   return (
@@ -51,6 +56,8 @@ export default function AddFaqModal({ onAdd }: Props) {
         }
         modal
         nested
+        closeOnDocumentClick={!saving}
+        closeOnEscape={!saving}
       >
         {((close: () => void) => (
           <div className="p-4">
@@ -60,6 +67,7 @@ export default function AddFaqModal({ onAdd }: Props) {
               <label className="form-label">Question</label>
               <input
                 type="text"
+                disabled={saving}
                 className={`form-control ${errors.question ? "is-invalid" : ""}`}
                 value={question}
                 onChange={(e) => {
@@ -74,6 +82,7 @@ export default function AddFaqModal({ onAdd }: Props) {
             <div className="mb-3">
               <label className="form-label">Answer</label>
               <textarea
+                disabled={saving}
                 className={`form-control ${errors.answer ? "is-invalid" : ""}`}
                 rows={3}
                 value={answer}
@@ -87,14 +96,15 @@ export default function AddFaqModal({ onAdd }: Props) {
             </div>
 
             <div className="d-flex justify-content-end gap-2">
-              <button className="btn btn-secondary" onClick={close}>
+              <button className="btn btn-secondary" disabled={saving} onClick={close}>
                 Cancel
               </button>
               <button
                 className="btn btn-primary"
+                disabled={saving}
                 onClick={() => handleAdd(close)}
               >
-                Add
+                {saving ? "Saving…" : "Add FAQ"}
               </button>
             </div>
           </div>

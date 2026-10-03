@@ -5,14 +5,16 @@ import { useState } from "react";
 import Popup from "reactjs-popup";
 import "reactjs-popup/dist/index.css";
 import type { ReactNode } from "react";
+import { Pencil } from "lucide-react";
 import { toast } from "react-toastify";
 
 type EditModalProps = {
   faq: { _id: string; question: string; answer: string };
-  onSave: (updated: { _id: string; question: string; answer: string }) => void;
+  onSave: (updated: { _id: string; question: string; answer: string }) => Promise<boolean>;
 };
 
 export default function EditModal({ faq, onSave }: EditModalProps) {
+  const [saving, setSaving] = useState(false);
   const [question, setQuestion] = useState(faq.question);
   const [answer, setAnswer] = useState(faq.answer);
 
@@ -21,7 +23,8 @@ export default function EditModal({ faq, onSave }: EditModalProps) {
     answer: false,
   });
 
-  const handleSave = (close: () => void) => {
+  const handleSave = async (close: () => void) => {
+    if (saving) return;
     const isQuestionValid = question.trim().length > 0;
     const isAnswerValid = answer.trim().length > 0;
 
@@ -37,25 +40,31 @@ export default function EditModal({ faq, onSave }: EditModalProps) {
       return;
     }
 
-    onSave({
-      _id: faq._id,
-      question: question.trim(),
-      answer: answer.trim(),
-    });
+    setSaving(true);
+    try {
+      const success = await onSave({
+        _id: faq._id,
+        question: question.trim(),
+        answer: answer.trim(),
+      });
 
-    setErrors({ question: false, answer: false });
-    close();
+      if (!success) return;
+      setErrors({ question: false, answer: false });
+      close();
+    } finally { setSaving(false); }
   };
 
   return (
     <Popup
       trigger={
-        <button className="td-view-btn" title="Edit">
-          ✏️
+        <button className="td-view-btn" title="Edit FAQ" aria-label={`Edit FAQ: ${faq.question}`}>
+          <Pencil size={17} aria-hidden="true" />
         </button>
       }
       modal
       nested
+      closeOnDocumentClick={!saving}
+      closeOnEscape={!saving}
     >
       {((close: () => void) => (
         <div className="p-4">
@@ -65,6 +74,7 @@ export default function EditModal({ faq, onSave }: EditModalProps) {
             <label className="form-label">Question</label>
             <input
               type="text"
+              disabled={saving}
               className={`form-control ${errors.question ? "is-invalid" : ""}`}
               value={question}
               onChange={(e) => {
@@ -79,6 +89,7 @@ export default function EditModal({ faq, onSave }: EditModalProps) {
           <div className="mb-3">
             <label className="form-label">Answer</label>
             <textarea
+              disabled={saving}
               className={`form-control ${errors.answer ? "is-invalid" : ""}`}
               rows={3}
               value={answer}
@@ -92,14 +103,15 @@ export default function EditModal({ faq, onSave }: EditModalProps) {
           </div>
 
           <div className="d-flex justify-content-end gap-2">
-            <button className="btn btn-secondary" onClick={close}>
+            <button className="btn btn-secondary" disabled={saving} onClick={close}>
               Cancel
             </button>
             <button
               className="btn btn-primary"
+              disabled={saving}
               onClick={() => handleSave(close)}
             >
-              Save
+              {saving ? "Saving…" : "Save changes"}
             </button>
           </div>
         </div>

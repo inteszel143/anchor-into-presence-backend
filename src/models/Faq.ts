@@ -9,4 +9,4 @@ const FaqSchema = new mongoose.Schema(
 );
 
 export const Faq =
-  mongoose.models.Faq || mongoose.model("faqs", FaqSchema);
+  mongoose.models.faqs || mongoose.model("faqs", FaqSchema);

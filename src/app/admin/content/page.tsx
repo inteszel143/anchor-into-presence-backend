@@ -54,16 +54,18 @@ export default function TermsPrivacyEditor() {
 
   async function handleSave() {
     const selected = content[activeTab];
-    if (loading || saving || error || !selected.id) return;
+    if (loading || saving || error) return;
     setSaving(true);
     toast.dismiss();
     try {
-      const res = await fetch(`/api/admin/content/${selected.id}`, {
-        method: "PATCH",
+      const res = await fetch(selected.id ? `/api/admin/content/${selected.id}` : "/api/admin/content", {
+        method: selected.id ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: selected.description }),
+        body: JSON.stringify({ description: selected.description, contentType: activeTab }),
       });
-      if (!res.ok) throw new Error("Couldn’t save your changes. Please try again.");
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Couldn’t save your changes. Please try again.");
+      setContent(previous => ({ ...previous, [activeTab]: { ...previous[activeTab], id: result.content._id } }));
       toast.success(`${documents[activeTab].title} saved successfully.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn’t save your changes.");
@@ -105,7 +107,6 @@ export default function TermsPrivacyEditor() {
 
           {loading ? <div className={styles.state} role="status">Loading documents…</div>
             : error ? <div className={styles.state} role="alert"><FileText size={30} aria-hidden="true" /><h3>Documents couldn’t load</h3><p>{error}</p><button className={styles.retry} onClick={() => setAttempt(value => value + 1)}>Try again</button></div>
-            : !current.id ? <div className={styles.state}><FileText size={30} aria-hidden="true" /><h3>Document not available</h3><p>This document hasn’t been set up yet.</p></div>
             : <div className={styles.editor} aria-label={`${document.title} editor`}>
               <ReactQuill key={activeTab} theme="snow" value={current.description} readOnly={saving} onChange={value => setContent(previous => ({ ...previous, [activeTab]: { ...previous[activeTab], description: value } }))} placeholder="Write your document here…" />
             </div>}
@@ -113,7 +114,7 @@ export default function TermsPrivacyEditor() {
 
         <div className={styles.footer}>
           <p>Changes are applied when you save this document.</p>
-          <button type="button" className={styles.save} onClick={handleSave} disabled={loading || saving || Boolean(error) || !current.id}>
+          <button type="button" className={styles.save} onClick={handleSave} disabled={loading || saving || Boolean(error)}>
             <Save size={17} aria-hidden="true" />{saving ? "Saving…" : activeTab === "terms" ? "Save terms" : "Save privacy policy"}
           </button>
         </div>
