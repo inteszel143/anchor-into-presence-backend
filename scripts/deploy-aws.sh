@@ -60,7 +60,7 @@ chmod 600 "$release/src/lib/serviceAccountKey.json"
 
 cd "$release"
 npm ci --include=dev
-node --test tests/*.test.cjs
+node --test tests/*.test.cjs tests/admin-regressions.cjs
 if (( target_major >= 16 )); then
   npm run build -- --webpack
 else
