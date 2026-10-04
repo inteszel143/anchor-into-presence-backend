@@ -1,4 +1,4 @@
-.sidebar {
+.sidebar:global(.side-navbar) {
   display: flex;
   flex-direction: column;
   width: 280px;
@@ -9,7 +9,7 @@
   border-right: 1px solid #e5e7eb;
   transition: none;
 }
-.sidebar::before { display: none; }
+.sidebar:global(.side-navbar)::before { display: none; }
 .brand { display: flex; align-items: center; flex-shrink: 0; height: 89px; padding: 16px 20px; border-bottom: 1px solid #e9edf2; }
 .brandLink { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; color: #283c50; }
 .brandLink img { width: 48px; height: 48px; object-fit: contain; flex-shrink: 0; }
@@ -32,8 +32,8 @@
 .backdrop { display: none; }
 .sidebar a:focus-visible, .sidebar button:focus-visible, .toggle:focus-visible { outline: 3px solid #9bc3ff; outline-offset: 2px; }
 @media (max-width: 992px) {
-  .sidebar { z-index: 6; width: min(320px, 90vw); max-width: 320px; transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility .2s; }
-  .sidebar.open { transform: translateX(0); visibility: visible; }
+  .sidebar:global(.side-navbar) { z-index: 6; width: min(320px, 90vw); max-width: 320px; transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility .2s; }
+  .sidebar:global(.side-navbar).open { transform: translateX(0); visibility: visible; }
   .toggle { display: inline-flex; position: fixed; left: 20px; top: 22px; z-index: 4; }
   .close { display: inline-flex; margin-left: auto; flex-shrink: 0; width: 36px; height: 36px; }
   .brand { padding-inline: 14px; gap: 8px; }

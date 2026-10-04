@@ -8,6 +8,10 @@
   transition: margin-left .5s ease;
 }
 
+.layout :global(.main-section) > :global(.row) {
+  margin-inline: 0;
+}
+
 .layout > :global(.main-wrapper) > header {
   position: fixed;
   inset: 0 0 auto var(--admin-sidebar-width);
