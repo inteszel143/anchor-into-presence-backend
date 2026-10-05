@@ -4,6 +4,7 @@ import { Activity } from "@/models/Activity";
 import { Category } from "@/models/Category";
 import mongoose from "mongoose";
 import { uploadToS3 } from "@/lib/s3";
+import { isDailyPauseCategory } from "@/lib/activityMedia";
 import { Tags } from "@/models/Tags";
 
 export async function GET(
@@ -88,6 +89,9 @@ export async function PATCH(
     return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
   }
 
+  const existing = await Activity.findById(id);
+  if (!existing) return NextResponse.json({ message: "Activity not found" }, { status: 404 });
+
   const formData = await req.formData();
   const name = formData.get("name")?.toString();
   const description = formData.get("description")?.toString();
@@ -97,6 +101,22 @@ export async function PATCH(
   const contentId = formData.get("contentId")?.toString();
   const duration = formData.get("duration")?.toString();
   const scheduleDate = formData.get("scheduleDate")?.toString();
+
+  const categoryId = category || existing.category;
+  if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+    return NextResponse.json({ message: "Invalid category" }, { status: 400 });
+  }
+  const selectedCategory = await Category.findById(categoryId);
+  const isDailyPause = isDailyPauseCategory(selectedCategory?.name);
+  const file = formData.get("video");
+  const thumbnail = formData.get("thumbnail");
+  if (isDailyPause && thumbnail !== null &&
+      (!(thumbnail instanceof File) || thumbnail.size === 0 || !thumbnail.type.startsWith("image/"))) {
+    return NextResponse.json({ message: "Upload a static / quote image for this Daily Pause" }, { status: 400 });
+  }
+  if (isDailyPause && !thumbnail && !existing.thumbnail && !existing.video) {
+    return NextResponse.json({ message: "A Daily Pause image is required" }, { status: 400 });
+  }
 
   let tags: any[] | undefined = undefined;
   if (tagsString !== undefined) {
@@ -147,7 +167,10 @@ export async function PATCH(
     name,
     description,
     category,
-    contentType,
+    // Retain video-only legacy pauses until an image is supplied.
+    contentType: isDailyPause
+      ? (thumbnail || existing.thumbnail ? "Image" : existing.contentType)
+      : contentType,
     duration,
     contentId,
   };
@@ -157,19 +180,20 @@ export async function PATCH(
     updatePayload.schedulePublish = Boolean(scheduleDate);
   }
 
+  const scheduleTime = formData.get("scheduleTime")?.toString();
+  if (scheduleTime !== undefined) updatePayload.scheduleTime = scheduleTime;
+
   if (tags !== undefined) {
     updatePayload.tags = tags;
   }
 
-  const file = formData.get("video") as File;
-  const thumbnail = formData.get("thumbnail") as File;
   // Handle video upload
-  if (file && file.size > 0) {
+  if (!isDailyPause && file instanceof File && file.size > 0) {
     const filename = `${crypto.randomUUID()}-${file.name}`;
     updatePayload.video = await uploadToS3(file, filename);
   }
 
-  if (thumbnail && thumbnail.size > 0) {
+  if (thumbnail instanceof File && thumbnail.size > 0) {
     const filename = `${crypto.randomUUID()}-${thumbnail.name}`;
     updatePayload.thumbnail = await uploadToS3(thumbnail, filename);
   }
