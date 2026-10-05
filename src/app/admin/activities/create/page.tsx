@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { uploadActivity } from "@/lib/uploadActivity";
+import { isDailyPauseCategory } from "@/lib/activityMedia";
 import { useRouter } from "next/navigation";
 import Select from "react-select";
 import { toast } from "react-toastify";
@@ -44,10 +46,13 @@ export default function CreateActivityPage() {
   const [scheduleTime, setScheduleTime] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
   const router = useRouter();
+
+  const isDailyPause = isDailyPauseCategory(categories.find(cat => cat._id === selectedCategory)?.name);
 
   const categoryOptions: OptionType[] = categories.map((cat) => ({
     value: cat._id,
@@ -68,6 +73,13 @@ export default function CreateActivityPage() {
     fetchCategories();
   }, []);
 
+  useEffect(() => () => {
+    if (mediaPreview?.startsWith("blob:")) URL.revokeObjectURL(mediaPreview);
+  }, [mediaPreview]);
+  useEffect(() => () => {
+    if (thumbnailPreview?.startsWith("blob:")) URL.revokeObjectURL(thumbnailPreview);
+  }, [thumbnailPreview]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -76,7 +88,7 @@ export default function CreateActivityPage() {
     if (
       !name ||
       !description ||
-      !durationInMinutes ||
+      (!isDailyPause && !durationInMinutes) ||
       !contentId ||
       !contentType ||
       !thumbnailFile ||
@@ -86,6 +98,7 @@ export default function CreateActivityPage() {
       return;
     }
 
+    setUploadProgress(0);
     setLoading(true);
     try {
 
@@ -95,10 +108,10 @@ export default function CreateActivityPage() {
     formData.append("description", description);
     formData.append("tags", tags);
     formData.append("category", selectedCategory);
-    formData.append("duration", String(durationInMinutes));
+    formData.append("duration", isDailyPause ? "0" : String(durationInMinutes));
     formData.append("contentId", contentId);
-    formData.append("contentType", contentType);
-    if (mediaFile) {
+    formData.append("contentType", isDailyPause ? "Image" : contentType);
+    if (!isDailyPause && mediaFile) {
       formData.append("media", mediaFile);
     }
     formData.append("thumbnail", thumbnailFile);
@@ -106,21 +119,17 @@ export default function CreateActivityPage() {
     formData.append("scheduleDate", scheduleDate);
     formData.append("scheduleTime", scheduleTime);
 
-    const res = await fetch("/api/admin/activities/create", {
-      method: "POST",
-      body: formData,
-    });
+    const res = await uploadActivity(formData, setUploadProgress);
 
     if (res.ok) {
       toast.success("Activity created successfully.");
       router.push("/admin/activities"); // Redirect to list page
     } else {
-      const data = await res.json();
-      toast.error(data.message || "Failed to create activity.");
+      toast.error(res.message || "Failed to create activity.");
     }
 
-    } catch {
-      toast.error("Unable to save. Check your connection and try again.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -184,11 +193,11 @@ export default function CreateActivityPage() {
             </section>
             <section className={styles.card} aria-labelledby="activity-media">
               <div className={styles.cardHeading}>
-                <h2 id="activity-media">Media & thumbnail</h2>
-                <p>Upload your activity media and cover image.</p>
+                <h2 id="activity-media">{isDailyPause ? "Daily Pause image" : "Media & thumbnail"}</h2>
+                <p>{isDailyPause ? "Upload the image people will see when they open this pause." : "Upload your activity media and cover image."}</p>
               </div>
               <div className={styles.cardBody}>
-                <div className={styles.field}>
+                {!isDailyPause && <div className={styles.field}>
                   <label className={styles.label} htmlFor="activity-video-upload">
                     {contentType} Upload
                   </label>
@@ -227,9 +236,9 @@ export default function CreateActivityPage() {
                       className={styles.audioPreview}
                     />
                   )}
-                </div>
+                </div>}
                 <div className={styles.field}>
-                  <label className={styles.label} htmlFor="activity-thumbnail-upload">Thumbnail Upload</label>
+                  <label className={styles.label} htmlFor="activity-thumbnail-upload">{isDailyPause ? "Static / quote image" : "Thumbnail Upload"}</label>
                   <input id="activity-thumbnail-upload"
                     type="file"
                     className={styles.fileInput}
@@ -249,8 +258,8 @@ export default function CreateActivityPage() {
                   {thumbnailPreview && (
                     <img
                       src={thumbnailPreview}
-                      alt="Thumbnail Preview"
-                      className={styles.thumbnailPreview}
+                      alt={isDailyPause ? "Daily Pause preview" : "Thumbnail preview"}
+                      className={isDailyPause ? styles.pausePreview : styles.thumbnailPreview}
                     />
                   )}
                 </div>
@@ -261,20 +270,22 @@ export default function CreateActivityPage() {
             <section className={styles.card} aria-labelledby="activity-settings">
               <div className={styles.cardHeading}>
                 <h2 id="activity-settings">Content settings</h2>
-                <p>Set the content type, identifier, and duration.</p>
+                <p>{isDailyPause ? "Daily Pauses use a static image." : "Set the content type, identifier, and duration."}</p>
               </div>
               <div className={styles.cardBody}>
                 <div className={styles.field}>
                   <label className={styles.label} htmlFor="activity-content-type">Content Type</label>
                   <select id="activity-content-type"
                     className={styles.input}
-                    value={contentType}
+                    value={isDailyPause ? "Image" : contentType}
+                    disabled={isDailyPause}
                     onChange={(e) => {
                       setContentType(e.target.value);
                       setMediaFile(null);
                       setMediaPreview(null);
                     }}
                   >
+                    {isDailyPause && <option value="Image">Image</option>}
                     <option value="Video">Video</option>
                     <option value="Audio">Audio</option>
                   </select>
@@ -290,7 +301,7 @@ export default function CreateActivityPage() {
                     required
                   />
                 </div>
-                <div className={styles.field}>
+                {!isDailyPause && <div className={styles.field}>
                   <span className={styles.label}>Duration</span>
 
                   <div className={styles.twoFields}>
@@ -317,7 +328,7 @@ export default function CreateActivityPage() {
                       required
                     />
                   </div>
-                </div>
+                </div>}
               </div>
             </section>
             <section className={styles.card} aria-labelledby="activity-publishing">
@@ -369,8 +380,13 @@ export default function CreateActivityPage() {
           </div>
         </div>
         <div className={styles.actions}>
+          {loading && <p role="status" aria-live="polite">
+            {uploadProgress < 100
+              ? `Uploading files… ${uploadProgress}%`
+              : "Files received. Saving media and activity…"}
+          </p>}
           <button type="submit" className={styles.submit} disabled={loading}>
-            {loading ? "Submitting..." : "Create Activity"}
+            {loading ? "Creating activity…" : "Create Activity"}
           </button>
         </div>
       </form>

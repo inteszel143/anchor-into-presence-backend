@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, FolderOpen, Pencil, Video } from "lucide-react";
+import { ArrowLeft, CalendarDays, FolderOpen, ImageIcon, Pencil, Video } from "lucide-react";
+import { getActivityImage } from "@/lib/activityMedia";
 import { getImageUrl } from "@/lib/getImageUrl";
 import styles from "./activity-details.module.css";
 
@@ -13,6 +14,8 @@ type Activity = {
   name: string;
   description: string;
   video: string;
+  thumbnail?: string;
+  contentType?: string;
   taggedCategories: Category[];
   createdAt: string;
   status: number;
@@ -55,6 +58,8 @@ export default function ActivityDetailsPage() {
     return () => controller.abort();
   }, [id, attempt]);
 
+  const previewImage = activity ? getActivityImage(activity) : "";
+
   const created = activity?.createdAt ? new Date(activity.createdAt) : null;
   const createdLabel = created && !Number.isNaN(created.getTime())
     ? created.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
@@ -93,10 +98,12 @@ export default function ActivityDetailsPage() {
             <div className={styles.main}>
               <section className={styles.card} aria-labelledby="activity-preview-title">
                 <div className={styles.cardHeading}>
-                  <Video size={19} aria-hidden="true" /><h2 id="activity-preview-title">Media preview</h2>
+                  {previewImage ? <ImageIcon size={19} aria-hidden="true" /> : <Video size={19} aria-hidden="true" />}<h2 id="activity-preview-title">Media preview</h2>
                 </div>
                 <div className={styles.media}>
-                  {activity.video && !mediaError ? (
+                  {previewImage && !mediaError ? (
+                    <img src={getImageUrl(previewImage)} alt={`${activity.name} preview`} onError={() => setMediaError(true)} />
+                  ) : activity.video && !previewImage && !mediaError ? (
                     <video key={activity.video} src={getImageUrl(activity.video)} controls playsInline preload="metadata" onError={() => setMediaError(true)} aria-label={`${activity.name} preview`}>
                       Your browser does not support this video.
                     </video>

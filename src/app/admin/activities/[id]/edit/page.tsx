@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getActivityImage, isDailyPauseCategory } from "@/lib/activityMedia";
 import { useParams, useRouter } from "next/navigation";
 import Select from "react-select";
 import { toast } from "react-toastify";
@@ -29,10 +30,13 @@ export default function EditActivityPage() {
   const [contentId, setContentId] = useState("");
   const [duration, setDuration] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
   const [fetching, setFetching] = useState(true);
   const [loadError, setLoadError] = useState("");
 
   const [loading, setLoading] = useState(false);
+
+  const isDailyPause = isDailyPauseCategory(categories.find(cat => cat._id === selectedCategory)?.name);
 
   const categoryOptions: OptionType[] = categories.map((cat) => ({
     value: cat._id,
@@ -65,11 +69,12 @@ export default function EditActivityPage() {
           setTags(act.tags?.map((t: { name: string }) => t.name).join(", ") || "");
           setSelectedCategory(act.category || null);
           setVideoPreview(act.video || null);
-          setThumbnailPreview(act.thumbnail || null);
+          setThumbnailPreview(getActivityImage(act) || act.thumbnail || null);
           setContentType(act.contentType || "");
           setContentId(act.contentId || "");
           setDuration(act.duration || "");
           setScheduleDate(act.scheduleDate || "");
+          setScheduleTime(act.scheduleTime || "");
         }
 
         setCategories(categoryData.data || []);
@@ -84,6 +89,13 @@ export default function EditActivityPage() {
     fetchData();
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => () => {
+    if (videoPreview?.startsWith("blob:")) URL.revokeObjectURL(videoPreview);
+  }, [videoPreview]);
+  useEffect(() => () => {
+    if (thumbnailPreview?.startsWith("blob:")) URL.revokeObjectURL(thumbnailPreview);
+  }, [thumbnailPreview]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,11 +114,12 @@ export default function EditActivityPage() {
       formData.append("description", description);
       formData.append("tags", tags);
       if (selectedCategory) formData.append("category", selectedCategory);
-      if (contentType) formData.append("contentType", contentType);
+      formData.append("contentType", isDailyPause ? "Image" : contentType);
       if (contentId) formData.append("contentId", contentId);
       if (duration) formData.append("duration", duration);
       formData.append("scheduleDate", scheduleDate);
-      if (videoFile) formData.append("video", videoFile);
+      formData.append("scheduleTime", scheduleDate ? scheduleTime : "");
+      if (!isDailyPause && videoFile) formData.append("video", videoFile);
       if (thumbnailFile) formData.append("thumbnail", thumbnailFile);
 
       const res = await fetch(`/api/admin/activities/${id}`, {
@@ -195,11 +208,11 @@ export default function EditActivityPage() {
             </section>
             <section className={styles.card} aria-labelledby="activity-media">
               <div className={styles.cardHeading}>
-                <h2 id="activity-media">Media & thumbnail</h2>
-                <p>Review or replace the current video and cover image.</p>
+                <h2 id="activity-media">{isDailyPause ? "Daily Pause image" : "Media & thumbnail"}</h2>
+                <p>{isDailyPause ? "Review or replace the image for this pause." : "Review or replace the current video and cover image."}</p>
               </div>
               <div className={styles.cardBody}>
-                <div className={styles.field}>
+                {!isDailyPause && <div className={styles.field}>
                   <label className={styles.label} htmlFor="activity-video-upload">
                     Video Upload
                   </label>
@@ -220,10 +233,10 @@ export default function EditActivityPage() {
                       className={styles.videoPreview}
                     />
                   )}
-                </div>
+                </div>}
                 <div className={styles.field}>
                   <label className={styles.label} htmlFor="activity-thumbnail-upload">
-                    Thumbnail Upload
+                    {isDailyPause ? "Static / quote image" : "Thumbnail Upload"}
                   </label>
                   <input id="activity-thumbnail-upload"
                     type="file"
@@ -238,8 +251,8 @@ export default function EditActivityPage() {
                   {thumbnailPreview && (
                     <img
                       src={getImageUrl(thumbnailPreview)}
-                      alt="Thumbnail Preview"
-                      className={styles.thumbnailPreview}
+                      alt={isDailyPause ? "Daily Pause preview" : "Thumbnail preview"}
+                      className={isDailyPause ? styles.pausePreview : styles.thumbnailPreview}
                     />
                   )}
                 </div>
@@ -250,7 +263,7 @@ export default function EditActivityPage() {
             <section className={styles.card} aria-labelledby="activity-settings">
               <div className={styles.cardHeading}>
                 <h2 id="activity-settings">Content settings</h2>
-                <p>Set the content type, identifier, and duration.</p>
+                <p>{isDailyPause ? "Daily Pauses use a static image." : "Set the content type, identifier, and duration."}</p>
               </div>
               <div className={styles.cardBody}>
                 <div className={styles.field}>
@@ -258,7 +271,8 @@ export default function EditActivityPage() {
                   <input id="activity-content-type"
                     type="text"
                     className={styles.input}
-                    value={contentType}
+                    value={isDailyPause ? "Image" : contentType}
+                    disabled={isDailyPause}
                     onChange={(e) => setContentType(e.target.value)}
                   />
                 </div>
@@ -271,7 +285,7 @@ export default function EditActivityPage() {
                     onChange={(e) => setContentId(e.target.value)}
                   />
                 </div>
-                <div className={styles.field}>
+                {!isDailyPause && <div className={styles.field}>
                   <label className={styles.label} htmlFor="activity-duration">Duration</label>
                   <input id="activity-duration"
                     type="text"
@@ -279,7 +293,7 @@ export default function EditActivityPage() {
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                   />
-                </div>
+                </div>}
               </div>
             </section>
             <section className={styles.card} aria-labelledby="activity-publishing">
@@ -298,6 +312,12 @@ export default function EditActivityPage() {
                     value={scheduleDate}
                     onChange={(e) => setScheduleDate(e.target.value)}
                   />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-schedule-time">Schedule Time</label>
+                  <input id="activity-schedule-time" type="time" className={styles.input}
+                    value={scheduleTime} disabled={!scheduleDate}
+                    onChange={(e) => setScheduleTime(e.target.value)} />
                 </div>
               </div>
             </section>

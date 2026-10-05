@@ -65,6 +65,8 @@ export async function GET(req: NextRequest) {
         _id: 1,
         name: 1,
         video: 1,
+        thumbnail: 1,
+        contentType: 1,
         description: 1,
         status: 1,
         createdAt: 1,

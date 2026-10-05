@@ -1,7 +1,8 @@
 "use client";
 
-import { Activity, ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search, Trash2, Video, X } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Eye, ImageIcon, Pencil, Plus, Search, Trash2, Video, X } from "lucide-react";
 import Link from "next/link";
+import { getActivityImage } from "@/lib/activityMedia";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import styles from "./activities.module.css";
@@ -12,6 +13,9 @@ type ActivityItem = {
   status: number;
   scheduleDate?: string;
   video?: string;
+  thumbnail?: string;
+  contentType?: string;
+  taggedCategoriesData?: { name: string }[];
 };
 
 function scheduleLabel(value?: string) {
@@ -116,7 +120,7 @@ export default function AdminActivitiesListPage() {
             <table className={styles.table}><thead><tr><th scope="col">Activity</th><th scope="col">Media</th><th scope="col">Schedule date</th><th scope="col">Status</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead><tbody>
               {activities.map(activity => <tr key={activity._id}>
                 <td><div className={styles.identity}><span className={styles.activityIcon}><Activity size={20} aria-hidden="true" /></span><div><Link className={styles.name} href={`/admin/activities/${activity._id}/view`}>{activity.name || "Untitled activity"}</Link><span className={styles.userId} title={activity._id}>#{activity._id.slice(-6)}</span></div></div></td>
-                <td>{activity.video ? <Link className={styles.mediaLink} href={`/admin/activities/${activity._id}/view`}><Video size={16} aria-hidden="true" />Preview</Link> : <span className={styles.muted}>No media</span>}</td>
+                <td>{(getActivityImage(activity) || activity.video) ? <Link className={styles.mediaLink} href={`/admin/activities/${activity._id}/view`}>{getActivityImage(activity) ? <ImageIcon size={16} aria-hidden="true" /> : <Video size={16} aria-hidden="true" />}Preview</Link> : <span className={styles.muted}>No media</span>}</td>
                 <td className={styles.date}>{scheduleLabel(activity.scheduleDate)}</td>
                 <td><span className={`${styles.badge} ${activity.status === 1 ? styles.active : styles.inactive}`}>{activity.status === 1 ? "Active" : "Inactive"}</span></td>
                 <td><div className={styles.actions}><Link href={`/admin/activities/${activity._id}/view`} aria-label={`View ${activity.name}`} title="View activity"><Eye size={17} aria-hidden="true" /></Link><Link href={`/admin/activities/${activity._id}/edit`} aria-label={`Edit ${activity.name}`} title="Edit activity"><Pencil size={17} aria-hidden="true" /></Link><button type="button" className={styles.deleteButton} disabled={pending !== null} onClick={() => deleteActivity(activity)} aria-label={`Delete ${activity.name}`} title="Delete activity"><Trash2 size={17} aria-hidden="true" /></button></div></td>
