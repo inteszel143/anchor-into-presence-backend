@@ -21,7 +21,8 @@ function loadModule(file, mocks = {}) {
 const modelMocks = Activity => ({
   '@/lib/db': { connectDB: async () => {} },
   '@/models/Activity': { Activity },
-  '@/models/Category': {},
+  '@/models/Category': { Category: { findById: async () => ({ name: 'Daily Anchor' }) } },
+  '@/lib/activityMedia': loadModule('src/lib/activityMedia.ts'),
   '@/models/Tags': { Tags: { find: async () => [], insertMany: async () => [] } },
   '@/lib/s3': { uploadToS3: () => { throw new Error('Unexpected upload'); } },
 });
@@ -77,7 +78,7 @@ test('activity detail includes edit fields and joins the actual category and tag
 test('activity edit persists the schedule date separately from its boolean flag', async () => {
   for (const date of ['2026-12-25', '']) {
     let payload;
-    const { PATCH } = loadModule('src/app/api/admin/activities/[id]/route.ts', modelMocks({ findByIdAndUpdate: async (_, update) => { payload = update; return { _id: 'test', ...update }; } }));
+    const { PATCH } = loadModule('src/app/api/admin/activities/[id]/route.ts', modelMocks({ findById: async () => ({ category: '507f1f77bcf86cd799439012' }), findByIdAndUpdate: async (_, update) => { payload = update; return { _id: 'test', ...update }; } }));
     const form = new FormData();
     form.set('name', 'Test'); form.set('description', 'Test description'); form.set('scheduleDate', date);
     const response = await PATCH(new NextRequest('http://localhost/api/admin/activities/507f1f77bcf86cd799439011', { method: 'PATCH', body: form }), { params: Promise.resolve({ id: '507f1f77bcf86cd799439011' }) });
@@ -89,7 +90,7 @@ test('activity edit persists the schedule date separately from its boolean flag'
 });
 
 test('activity update reports a deleted record rather than success', async () => {
-  const { PATCH } = loadModule('src/app/api/admin/activities/[id]/route.ts', modelMocks({ findByIdAndUpdate: async () => null }));
+  const { PATCH } = loadModule('src/app/api/admin/activities/[id]/route.ts', modelMocks({ findById: async () => ({ category: '507f1f77bcf86cd799439012' }), findByIdAndUpdate: async () => null }));
   const form = new FormData(); form.set('name', 'Test'); form.set('description', 'Test');
   const response = await PATCH(new NextRequest('http://localhost/api/admin/activities/507f1f77bcf86cd799439011', { method: 'PATCH', body: form }), { params: Promise.resolve({ id: '507f1f77bcf86cd799439011' }) });
   assert.equal(response.status, 404);
