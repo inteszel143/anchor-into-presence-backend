@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { uploadActivity } from "@/lib/uploadActivity";
 import { isDailyPauseCategory } from "@/lib/activityMedia";
 import { useRouter } from "next/navigation";
+import { LoaderCircle, Plus } from "lucide-react";
 import Select from "react-select";
 import { toast } from "react-toastify";
 import styles from "../activity-form.module.css";
@@ -402,13 +403,34 @@ export default function CreateActivityPage() {
           </div>
         </div>
         <div className={styles.actions}>
-          {loading && <p role="status" aria-live="polite">
-            {uploadProgress < 100
-              ? `Uploading files… ${uploadProgress}%`
-              : "Files received. Saving media and activity…"}
-          </p>}
-          <button type="submit" className={styles.submit} disabled={loading}>
-            {loading ? "Creating activity…" : "Create Activity"}
+          {loading && (
+            <div className={styles.uploadStatus}>
+              <span className={styles.statusIcon} aria-hidden="true">
+                <LoaderCircle size={20} className={styles.spinner} />
+              </span>
+              <div className={styles.statusContent}>
+                <div role="status" aria-live="polite" aria-atomic="true">
+                  <p className={styles.statusTitle}>
+                    {uploadProgress < 100 ? "Uploading files" : "Saving your activity"}
+                  </p>
+                  <p className={styles.statusDescription}>
+                    {uploadProgress < 100
+                      ? "Please keep this page open while your files upload."
+                      : "Files received. Finishing up—please keep this page open."}
+                  </p>
+                </div>
+                {uploadProgress < 100 && (
+                  <div className={styles.progressRow}>
+                    <progress className={styles.uploadProgress} value={uploadProgress} max={100} aria-label="File upload progress" />
+                    <span className={styles.progressValue} aria-hidden="true">{uploadProgress}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <button type="submit" className={styles.submit} disabled={loading} aria-busy={loading}>
+            {!loading && <Plus size={18} aria-hidden="true" />}
+            {loading ? (uploadProgress < 100 ? "Uploading…" : "Saving…") : "Create activity"}
           </button>
         </div>
       </form>

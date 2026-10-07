@@ -28,12 +28,14 @@ export default function ActivityDetailsPage() {
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [mediaError, setMediaError] = useState(false);
+  const [thumbnailError, setThumbnailError] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError("");
     setMediaError(false);
+    setThumbnailError(false);
     const fetchActivity = async () => {
       try {
         const res = await fetch(`/api/admin/activities/${id}`, {
@@ -57,6 +59,9 @@ export default function ActivityDetailsPage() {
     fetchActivity();
     return () => controller.abort();
   }, [id, attempt]);
+
+  const isDailyAnchor = activity?.taggedCategories?.some(category =>
+    /^daily anchors?$/.test(category.name.trim().toLowerCase()));
 
   const previewImage = activity ? getActivityImage(activity) : "";
 
@@ -116,6 +121,26 @@ export default function ActivityDetailsPage() {
                   )}
                 </div>
               </section>
+              {isDailyAnchor && (
+                <section className={styles.card} aria-labelledby="activity-thumbnail-title">
+                  <div className={styles.cardHeading}>
+                    <ImageIcon size={19} aria-hidden="true" />
+                    <h2 id="activity-thumbnail-title">Thumbnail preview</h2>
+                  </div>
+                  <div className={styles.thumbnail}>
+                    {activity.thumbnail && !thumbnailError ? (
+                      <img src={getImageUrl(activity.thumbnail)} alt={`${activity.name} thumbnail`}
+                        onError={() => setThumbnailError(true)} />
+                    ) : (
+                      <div className={styles.thumbnailEmpty}>
+                        <ImageIcon size={28} aria-hidden="true" />
+                        <p>{thumbnailError ? "This thumbnail couldn’t load." : "No thumbnail added yet."}</p>
+                        <Link href={`/admin/activities/${activity._id}/edit`}>Edit activity to {thumbnailError ? "replace" : "add"} the thumbnail</Link>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
               <section className={styles.card} aria-labelledby="activity-description-title">
                 <div className={styles.cardHeading}><h2 id="activity-description-title">Description</h2></div>
                 <p className={styles.description}>{activity.description?.trim() || "No description added yet."}</p>
