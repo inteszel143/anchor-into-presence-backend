@@ -138,7 +138,7 @@ export default function EditActivityPage() {
         router.push("/admin/activities");
       } else {
         const data = await res.json().catch(() => ({}));
-        toast.error(res.status === 413 ? UPLOAD_LIMIT_MESSAGE : data.message || "Failed to update activity.");
+        toast.error(res.status === 413 ? UPLOAD_LIMIT_MESSAGE : data.message || "Failed to update activitys.");
       }
     } catch (error) {
       console.error("Error updating activity:", error);
