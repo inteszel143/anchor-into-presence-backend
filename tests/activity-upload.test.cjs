@@ -64,5 +64,5 @@ test('proxy HTML 413 errors show the upload limit', async () => {
   app.xhr().onload();
   const response = await result;
   assert.equal(response.ok, false);
-  assert.match(response.message, /100 MB/);
+  assert.match(response.message, /200 MB/);
 });
