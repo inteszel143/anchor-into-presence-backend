@@ -19,13 +19,14 @@ export async function GET(req: NextRequest) {
     status: 1,
   };
 
-  const andConditions: any[] = [];
-
-  if (filterDate) {
-    andConditions.push({
-      scheduleDate: filterDate,
-    });
-  }
+  // Match the published catalog used by See all, not only today's releases.
+  const publishedThrough = filterDate || new Date().toISOString().split("T")[0];
+  const andConditions: any[] = [
+    {
+      scheduleDate: { $lte: publishedThrough },
+      schedulePublish: true,
+    },
+  ];
 
   if (query) {
     andConditions.push({
@@ -131,8 +132,8 @@ export async function GET(req: NextRequest) {
       grouped[categoryName] = [];
     }
 
-    // limit to 4 per category
-    if (grouped[categoryName].length < 4) {
+    // Return up to five real activities per Home category.
+    if (grouped[categoryName].length < 5) {
       grouped[categoryName].push(activity);
     }
   }

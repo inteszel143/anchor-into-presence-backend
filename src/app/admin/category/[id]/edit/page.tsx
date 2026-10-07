@@ -12,15 +12,25 @@ export default function EditActivityPage() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [fetching, setFetching] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
   // Fetch existing data
   useEffect(() => {
     const fetchActivity = async () => {
+      setFetching(true);
+      setLoadError("");
+      try {
       const res = await fetch(`/api/admin/category/${id}`);
+      if (!res.ok) throw new Error("Category could not load");
       const data = await res.json();
       const act = data.category;
 
       setName(act.name);
       setDescription(act.description);
+      } catch {
+        setLoadError("Couldn’t load this category. Reload the page to try again.");
+      } finally { setFetching(false); }
     };
 
     fetchActivity();
@@ -28,6 +38,7 @@ export default function EditActivityPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || fetching || loadError) return;
           toast.dismiss()
       toast.clearWaitingQueue();
     toast.dismiss();
@@ -37,6 +48,8 @@ export default function EditActivityPage() {
     }
 
     setLoading(true);
+    try {
+
 
 
     const res = await fetch(`/api/admin/category/${id}`, {
@@ -50,11 +63,18 @@ export default function EditActivityPage() {
       router.push("/admin/category");
     } else {
       const data = await res.json();
-      toast.error(data.message || "Failed to update activity.");
+      toast.error(data.message || "Failed to update category.");
     }
 
-    setLoading(false);
+    } catch {
+      toast.error("Unable to save. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (fetching) return <p role="status">Loading category…</p>;
+  if (loadError) return <p role="alert">{loadError}</p>;
 
   return (
     <>
@@ -98,7 +118,7 @@ export default function EditActivityPage() {
                     className="btn btn-primary px-5 py-2 rounded"
                     disabled={loading}
                   >
-                    {loading ? "Updating..." : "Update Activity"}
+                    {loading ? "Updating..." : "Update Category"}
                   </button>
                 </div>
               </form>

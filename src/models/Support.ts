@@ -21,4 +21,4 @@ const SupportSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-export const Support = mongoose.models.user_login_streaks || mongoose.model("support", SupportSchema);
+export const Support = mongoose.models.support || mongoose.model("support", SupportSchema);

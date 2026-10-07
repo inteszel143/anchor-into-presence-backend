@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import clsx from "clsx";
+import Link from "next/link";
+import { ArrowLeft, CalendarDays, FolderOpen, ImageIcon, Pencil, Video } from "lucide-react";
+import { getActivityImage } from "@/lib/activityMedia";
 import { getImageUrl } from "@/lib/getImageUrl";
+import styles from "./activity-details.module.css";
 
-type Category = {
-  _id: string;
-  name: string;
-};
-
+type Category = { _id: string; name: string };
 type Activity = {
   _id: string;
   name: string;
   description: string;
   video: string;
+  thumbnail?: string;
+  contentType?: string;
   taggedCategories: Category[];
   createdAt: string;
   status: number;
@@ -24,99 +25,123 @@ export default function ActivityDetailsPage() {
   const { id } = useParams();
   const [activity, setActivity] = useState<Activity | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const [mediaError, setMediaError] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    setMediaError(false);
     const fetchActivity = async () => {
       try {
-        const res = await fetch(`/api/admin/activities/${id}`);
+        const res = await fetch(`/api/admin/activities/${id}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          throw new Error(res.status === 404 ? "Activity not found." : "We couldn’t load this activity. Please try again.");
+        }
         const data = await res.json();
-        console.log(data);
-        setActivity(data.data);
+        if (!data.data) throw new Error("Activity not found.");
+        if (!controller.signal.aborted) setActivity(data.data);
       } catch (err) {
-        console.error("Failed to fetch activity", err);
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "We couldn’t load this activity.");
+          setActivity(null);
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
     fetchActivity();
-  }, [id]);
+    return () => controller.abort();
+  }, [id, attempt]);
 
-  if (loading) return <div className="p-6">Loading...</div>;
-  if (!activity) return <div className="p-6">Activity not found.</div>;
+  const previewImage = activity ? getActivityImage(activity) : "";
+
+  const created = activity?.createdAt ? new Date(activity.createdAt) : null;
+  const createdLabel = created && !Number.isNaN(created.getTime())
+    ? created.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    : "Not available";
 
   return (
-    <>
-      <div className="row justify-content-center">
-        <div className="col-lg-8">
-          <div className="bg-white rounded-2xl shadow-md p-5">
-            <div className="mb-4">
-                <h1 className="mb-2 fs-14"> Activity Name:</h1>
-            <p className="fs-14 text-gray-900 mb-0">
-              {activity.name}
-            </p>
-            </div>
+    <div className={styles.page}>
+      <Link href="/admin/activities" className={styles.back}>
+        <ArrowLeft size={17} aria-hidden="true" /> Back to activities
+      </Link>
 
-            <div className="mb-4">
-              <h2 className="fs-12 mb-2">
-                Description:
-              </h2>
-              <p className="mb-0">
-                {activity.description}
-              </p>
-            </div>
-
-            {activity.video && (
-              <div className="mb-4">
-                <h2 className="fs-12 mb-2">
-                  Video:
-                </h2>
-                <div className="relative overflow-hidden rounded-lg border">
-                  <video
-                    src={getImageUrl(activity.video)}
-                    controls
-                    className="w-full max-h-[400px] rounded-lg"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="mb-4">
-              <h2 className="fs-14 mb-2">
-                Categories:
-              </h2>
-              <div className="hstack flex-wrap gap-2">
-                {(activity.taggedCategories || []).map((cat) => (
-                  <span
-                    key={cat._id}
-                    className="bg-blue-100 text-black px-3 py-1 text-sm rounded-full"
-                  >
-                    {cat.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <section className="flex flex-col sm:flex-row sm:justify-between text-sm text-gray-600 mt-8 border-t pt-3">
-              <div>
-                <span className="font-medium fs-12">Created At:</span>{" "}
-                {new Date(activity.createdAt).toLocaleString()}
-              </div>
-              <div>
-                <span className="font-medium fs-12">Status:</span>{" "}
-                <span
-                  className={clsx(
-                    "fs-12",
-                    activity.status === 1 ? "text-green-600" : "text-red-600"
-                  )}
-                >
-                  {activity.status === 1 ? "Active" : "Inactive"}
-                </span>
-              </div>
-            </section>
-          </div>
+      {loading ? (
+        <div className={styles.emptyState} role="status">Loading activity details…</div>
+      ) : error || !activity ? (
+        <div className={styles.emptyState} role="alert">
+          <h1>Activity unavailable</h1>
+          <p>{error || "Activity not found."}</p>
+          <button type="button" className={styles.editButton} onClick={() => setAttempt(value => value + 1)}>Try again</button>
         </div>
-      </div>
-    </>
+      ) : (
+        <>
+          <div className={styles.heading}>
+            <div>
+              <p className={styles.eyebrow}>Activity details</p>
+              <h1>{activity.name || "Untitled activity"}</h1>
+              <span className={`${styles.badge} ${activity.status === 1 ? styles.active : styles.inactive}`}>
+                <span aria-hidden="true" />{activity.status === 1 ? "Active" : "Inactive"}
+              </span>
+            </div>
+            <Link href={`/admin/activities/${activity._id}/edit`} className={styles.editButton}>
+              <Pencil size={16} aria-hidden="true" /> Edit activity
+            </Link>
+          </div>
+
+          <div className={styles.grid}>
+            <div className={styles.main}>
+              <section className={styles.card} aria-labelledby="activity-preview-title">
+                <div className={styles.cardHeading}>
+                  {previewImage ? <ImageIcon size={19} aria-hidden="true" /> : <Video size={19} aria-hidden="true" />}<h2 id="activity-preview-title">Media preview</h2>
+                </div>
+                <div className={styles.media}>
+                  {previewImage && !mediaError ? (
+                    <img src={getImageUrl(previewImage)} alt={`${activity.name} preview`} onError={() => setMediaError(true)} />
+                  ) : activity.video && !previewImage && !mediaError ? (
+                    <video key={activity.video} src={getImageUrl(activity.video)} controls playsInline preload="metadata" onError={() => setMediaError(true)} aria-label={`${activity.name} preview`}>
+                      Your browser does not support this video.
+                    </video>
+                  ) : (
+                    <div className={styles.mediaEmpty}>
+                      <Video size={32} aria-hidden="true" />
+                      <p>{mediaError ? "This media couldn’t load." : "No media added yet."}</p>
+                      <span>{mediaError ? "Try refreshing the page or check the media in Edit activity." : "Add media from the activity editor."}</span>
+                    </div>
+                  )}
+                </div>
+              </section>
+              <section className={styles.card} aria-labelledby="activity-description-title">
+                <div className={styles.cardHeading}><h2 id="activity-description-title">Description</h2></div>
+                <p className={styles.description}>{activity.description?.trim() || "No description added yet."}</p>
+              </section>
+            </div>
+
+            <aside className={`${styles.card} ${styles.details}`} aria-labelledby="activity-overview-title">
+              <h2 id="activity-overview-title">Overview</h2>
+              <dl className={styles.metadata}>
+                <div>
+                  <dt><CalendarDays size={16} aria-hidden="true" />Created</dt>
+                  <dd>{createdLabel}</dd>
+                </div>
+                <div>
+                  <dt><FolderOpen size={16} aria-hidden="true" />Categories</dt>
+                  <dd className={styles.categories}>
+                    {activity.taggedCategories?.length ? activity.taggedCategories.map(category => (
+                      <span key={category._id} className={styles.category}>{category.name}</span>
+                    )) : <span className={styles.muted}>No categories assigned.</span>}
+                  </dd>
+                </div>
+              </dl>
+            </aside>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

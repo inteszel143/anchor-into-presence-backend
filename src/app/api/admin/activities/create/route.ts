@@ -1,17 +1,32 @@
+import { activityFileSizeError, REQUEST_LIMIT_BYTES, UPLOAD_LIMIT_MESSAGE } from "@/lib/activityUploadLimits";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Activity } from "@/models/Activity";
 import { uploadToS3 } from "@/lib/s3";
+import { Category } from "@/models/Category";
+import mongoose from "mongoose";
+import { isDailyPauseCategory } from "@/lib/activityMedia";
 import { Tags } from "@/models/Tags";
 import { apiErrorResponse } from "@/lib/apiResponse";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const started = Date.now();
+  const timings: Record<string, number> = {};
+  async function measure<T>(stage: string, operation: () => Promise<T>): Promise<T> {
+    const start = Date.now();
+    try { return await operation(); }
+    finally { timings[stage] = Date.now() - start; }
+  }
   try {
-    await connectDB();
-
-    const formData = await req.formData();
+    if (Number(req.headers.get("content-length")) > REQUEST_LIMIT_BYTES) {
+      return NextResponse.json({ message: UPLOAD_LIMIT_MESSAGE }, { status: 413 });
+    }
+    const [formData] = await Promise.all([
+      measure("receive", () => req.formData()),
+      measure("database_connect", () => connectDB()),
+    ]);
 
     const name = formData.get("name")?.toString();
     const description = formData.get("description")?.toString();
@@ -23,6 +38,26 @@ export async function POST(req: NextRequest) {
     const schedulePublish = formData.get("schedulePublish")?.toString();
     const scheduleDate = formData.get("scheduleDate")?.toString();
     const scheduleTime = formData.get("scheduleTime")?.toString();
+
+    const file = formData.get("media") as File | null;
+    const thumbnail = formData.get("thumbnail");
+    const sizeError = activityFileSizeError(file instanceof File ? file : null, contentType === "Audio" ? "Audio" : "Video")
+      || activityFileSizeError(thumbnail instanceof File ? thumbnail : null, "Image");
+    if (sizeError) return NextResponse.json({ message: sizeError }, { status: 413 });
+    if (!name || !description || !category || !(thumbnail instanceof File) || thumbnail.size === 0) {
+      return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
+    }
+    if (!mongoose.Types.ObjectId.isValid(category)) {
+      return NextResponse.json({ message: "Invalid category" }, { status: 400 });
+    }
+    const selectedCategory = await measure("category", () => Promise.resolve(Category.findById(category)));
+    if (!selectedCategory) {
+      return NextResponse.json({ message: "Category not found" }, { status: 400 });
+    }
+    const isDailyPause = isDailyPauseCategory(selectedCategory.name);
+    if (isDailyPause && !thumbnail.type.startsWith("image/")) {
+      return NextResponse.json({ message: "Upload a static / quote image for this Daily Pause" }, { status: 400 });
+    }
 
     let tags: any[] = [];
     if (tagsString && tagsString.trim() !== "") {
@@ -59,41 +94,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const file = formData.get("media") as File | null;
-    const thumbnail = formData.get("thumbnail") as File;
-
-    if (!name || !description || !category || !thumbnail) {
-      return NextResponse.json(
-        { message: "Missing required fields" },
-        { status: 400 }
-      );
-    }
-
     const thumbnailExt = thumbnail.name.split(".").pop();
     const thumbnailFilename = `${crypto.randomUUID()}.${thumbnailExt}`;
-    const thumbnailPath = await uploadToS3(thumbnail, thumbnailFilename);
+    const [thumbnailPath, videoPath] = await Promise.all([
+      measure("thumbnail_upload", () => uploadToS3(thumbnail, thumbnailFilename)),
+      !isDailyPause && file instanceof File && file.size > 0
+        ? measure("media_upload", () => uploadToS3(file, `${crypto.randomUUID()}.${file.name.split(".").pop()}`))
+        : Promise.resolve(""),
+    ]);
 
-    let videoPath = "";
-    if (file && typeof file === "object" && file.size > 0) {
-      const ext = file.name.split(".").pop();
-      const filename = `${crypto.randomUUID()}.${ext}`;
-      videoPath = await uploadToS3(file, filename);
-    }
-
-    const newActivity = await Activity.create({
+    const newActivity = await measure("save", () => Activity.create({
       name,
       description,
       contentId,
       video: videoPath,
       thumbnail: thumbnailPath,
       category: category,
-      contentType,
+      contentType: isDailyPause ? "Image" : contentType,
       tags,
-      duration,
+      duration: isDailyPause ? "0" : duration,
       schedulePublish,
       scheduleDate: scheduleDate??'',
       scheduleTime: scheduleTime??''
-    });
+    }));
 
     return NextResponse.json(
       { message: "Activity created", activity: newActivity },
@@ -102,5 +125,8 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("Activity Upload Error:", err);
     return apiErrorResponse(err, { message: "Server error" });
+  } finally {
+    // Durations only: never log uploaded content or form fields.
+    console.info("Activity creation timings (ms)", { ...timings, total: Date.now() - started });
   }
 }

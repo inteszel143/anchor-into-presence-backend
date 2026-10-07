@@ -9,4 +9,4 @@ const ContentSchema = new mongoose.Schema(
 );
 
 export const Content =
-  mongoose.models.Content || mongoose.model("contents", ContentSchema);
+  mongoose.models.contents || mongoose.model("contents", ContentSchema);

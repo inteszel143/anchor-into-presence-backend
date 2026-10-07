@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import AdminSidebar from "@/components/AdminSidebar";
 import AdminHeader from "@/components/AdminHeader";
+import styles from "./admin-layout.module.css";
 
 export default function AdminLayout({
   children,
@@ -18,7 +19,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="admin-layout">
+    <div className={`admin-layout ${styles.layout}`}>
       <AdminSidebar />
       <div className="main-wrapper">
         <AdminHeader />
@@ -32,4 +33,3 @@ export default function AdminLayout({
     </div>
   );
 }
- 

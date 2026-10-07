@@ -1,0 +1,45 @@
+.layout {
+  --admin-header-height: 89px;
+  --admin-sidebar-width: 280px;
+}
+
+.layout > :global(.main-wrapper) {
+  padding-top: var(--admin-header-height);
+  transition: margin-left .5s ease;
+}
+
+.layout :global(.main-section) > :global(.row) {
+  margin-inline: 0;
+}
+
+.layout > :global(.main-wrapper) > header {
+  position: fixed;
+  inset: 0 0 auto var(--admin-sidebar-width);
+  height: var(--admin-header-height);
+  display: flex;
+  align-items: center;
+  z-index: 3;
+  transition: left .5s ease;
+}
+
+.layout > :global(.main-wrapper.main-width) > header {
+  left: 100px;
+}
+
+.layout :global(.sidemenu_list) {
+  overscroll-behavior-y: contain;
+}
+
+@media (max-width: 992px) {
+  .layout > :global(.main-wrapper) > header,
+  .layout > :global(.main-wrapper.main-width) > header {
+    left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout > :global(.main-wrapper),
+  .layout > :global(.main-wrapper) > header {
+    transition: none;
+  }
+}

@@ -1,137 +1,77 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import {
-  User,
-  LayoutDashboard,
-  Activity,
-  ChartBarStacked,
-  FileTerminal,
-  FileQuestionMark,
-  BellElectricIcon,
-  BriefcaseMedical,
-} from "lucide-react";
+import { Activity, Bell, ChevronRight, FileText, FolderOpen, HelpCircle, LayoutDashboard, LifeBuoy, Menu, Users, X } from "lucide-react";
+import styles from "./AdminSidebar.module.css";
 
-/**
- * Navigation links for static admin sidebar items.
- */
-const staticLinks = [
-  { label: "Users", href: "/admin/users", icon: <User /> },
-  { label: "Content", href: "/admin/content", icon: <FileTerminal /> },
-  { label: "FAQ", href: "/admin/faq", icon: <FileQuestionMark /> },
-  { label: "Support", href: "/admin/support", icon: <BriefcaseMedical /> },
-  { label: "Notifications", href: "/admin/notification", icon: <BellElectricIcon /> },
+const sections = [
+  { label: "Overview", links: [
+    { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+    { label: "Users", href: "/admin/users", icon: Users },
+  ] },
+  { label: "Library", links: [
+    { label: "Activities", href: "/admin/activities", icon: Activity },
+    { label: "Categories", href: "/admin/category", icon: FolderOpen },
+    { label: "Content", href: "/admin/content", icon: FileText },
+    { label: "FAQs", href: "/admin/faq", icon: HelpCircle },
+  ] },
+  { label: "Community", links: [
+    { label: "Support", href: "/admin/support", icon: LifeBuoy },
+    { label: "Notifications", href: "/admin/notification", icon: Bell },
+  ] },
 ];
 
-/**
- * Collapsible menu definitions for sectioned navigation.
- */
-const collapsibleMenus = [
-  {
-    id: "navActivity",
-    label: "Activity",
-    icon: <Activity />,
-    links: [
-      { label: "List Activity", href: "/admin/activities" },
-    ],
-  },
-  {
-    id: "navCategory",
-    label: "Category",
-    icon: <ChartBarStacked />,
-    links: [
-      { label: "List Category", href: "/admin/category" },
-    ],
-  },
-];
-
-/**
- * Admin Sidebar Navigation Component
- * Rendered on the left side of the admin dashboard layout.
- */
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
-  const isSubMenuActive = (menuLinks: { href: string }[]) =>
-    menuLinks.some((link) => pathname.startsWith(link.href));
+  function closeMenu() {
+    setOpen(false);
+    toggleRef.current?.focus();
+  }
 
   return (
     <>
-      <div className="side-navbar">
-        <button className="closeBtn">
-          <i className="fa-solid fa-times" />
-        </button>
-
-        <div className="sidebar-logo">
-          <Link className="logo" href="/admin/users">
-            <Image
-              src="/assets/images/logo_image.svg"
-              alt="Logo"
-              width={1}
-              height={1}
-            />
+      <button ref={toggleRef} type="button" className={styles.toggle} aria-label="Open navigation" aria-controls="admin-sidebar" aria-expanded={open} onClick={() => setOpen(true)}>
+        <Menu size={22} aria-hidden="true" />
+      </button>
+      {open && <button type="button" tabIndex={-1} className={styles.backdrop} aria-label="Close navigation" onClick={closeMenu} />}
+      <aside id="admin-sidebar" className={`side-navbar ${styles.sidebar} ${open ? styles.open : ""}`} onKeyDown={event => { if (event.key === "Escape" && open) { event.preventDefault(); closeMenu(); } }}>
+        <div className={styles.brand}>
+          <Link href="/admin/dashboard" className={styles.brandLink} onClick={() => setOpen(false)} aria-label="Anchor Into Presence dashboard">
+            <Image src="/assets/images/anchor-into-presence-logo.png" alt="" width={52} height={52} />
+            <span><strong>Anchor Into Presence</strong><span>Admin workspace</span></span>
           </Link>
+          <button type="button" className={styles.close} aria-label="Close navigation" onClick={closeMenu}><X size={20} aria-hidden="true" /></button>
         </div>
 
-        <div className="side_menu_wrapper">
-          <div className="sidemenu_list">
-            <ul className="nav flex-column position-relative" id="sidebar-nav">
-              {/* Static Nav Links */}
-              {staticLinks.map(({ label, href, icon }) => (
-                <li className="sidebar-link" key={href}>
-                  <Link
-                    className={`nav-link ${pathname === href ? "active" : ""}`}
-                    href={href}
-                  >
-                    <span className="menu-icon">{icon}</span>
-                    <span className="menu_text">{label}</span>
-                  </Link>
-                </li>
-              ))}
-
-              {/* Collapsible Menus */}
-              {collapsibleMenus.map(({ id, label, icon, links }) => {
-                const active = isSubMenuActive(links);
-                return (
-                  <li className="sidebar-link" key={id}>
-                    <a
-                      className={`nav-link ${active ? "" : "collapsed"}`}
-                      data-bs-toggle="collapse"
-                      href={`#${id}`}
-                      role="button"
-                      aria-expanded={active}
-                      aria-controls={id}
-                    >
-                      <span className="menu-icon">{icon}</span>
-                      <span className="menu_text">{label}</span>
-                    </a>
-                    <div
-                      className={`collapse ${active ? "show" : ""}`}
-                      id={id}
-                      data-bs-parent="#sidebar-nav"
-                    >
-                      <ul className="sub-menu-list">
-                        {links.map(({ label, href }) => (
-                          <li key={href}>
-                            <Link
-                              href={href}
-                              className={pathname === href ? "active" : ""}
-                            >
-                              {label}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-      </div>
+        <nav className={styles.navigation} aria-label="Admin navigation">
+          {sections.map(section => (
+            <div className={styles.section} key={section.label}>
+              <h2>{section.label}</h2>
+              <ul>
+                {section.links.map(({ label, href, icon: Icon }) => {
+                  const active = pathname === href || pathname.startsWith(`${href}/`);
+                  return (
+                    <li key={href}>
+                      <Link href={href} className={`${styles.link} ${active ? styles.active : ""}`} aria-current={active ? "page" : undefined} onClick={() => setOpen(false)}>
+                        <Icon size={19} strokeWidth={1.8} aria-hidden="true" />
+                        <span>{label}</span>
+                        {active && <ChevronRight size={15} className={styles.activeArrow} aria-hidden="true" />}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+        <div className={styles.footer}><span aria-hidden="true" /><p>A little more presence, every day.</p></div>
+      </aside>
     </>
   );
 }

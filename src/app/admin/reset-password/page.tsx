@@ -49,7 +49,7 @@ export default function ChangePassword() {
       const data = await res.json();
 
       if (!res.ok)
-        throw new Error(data.message || toast.error("Password update failed."));
+        throw new Error(data.message || "Password update failed.");
 
       toast.success("Password updated successfully.");
 

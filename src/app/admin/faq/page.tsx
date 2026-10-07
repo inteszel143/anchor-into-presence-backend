@@ -1,281 +1,137 @@
 "use client";
 
-import { ListPlus, PenIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { toast } from "react-toastify";
-import Link from "next/link";
-import EditModal from "@/components/EditModal";
+import { ChevronLeft, ChevronRight, CircleHelp, Search, Trash2, X } from "lucide-react";
 import AddFaqModal from "@/components/AddFaqModal";
+import EditModal from "@/components/EditModal";
+import { toast } from "react-toastify";
+import { useEffect, useState } from "react";
+import styles from "./faq.module.css";
 
-type Faq = {
-  _id: string;
-  question: string;
-  answer: string;
-};
-type Props = {
-  faq: { _id: string; question: string; answer: string };
-  onSave: (updated: { _id: string; question: string; answer: string }) => void;
-};
+type Faq = { _id: string; question: string; answer: string };
 
-export default function AdminUserListPage() {
-  const [faqs, setFaq] = useState<Faq[]>([]);
+export default function AdminFaqListPage() {
+  const [faqs, setFAQs] = useState<Faq[]>([]);
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-
-  const fetchFaqs = useCallback(async () => {
-    const params = new URLSearchParams({
-      search,
-      startDate,
-      endDate,
-      page: String(page),
-    });
-    const res = await fetch(`/api/admin/faqs?${params.toString()}`);
-    const data = await res.json();
-    setFaq(data.data || []);
-    setTotalPages(data.pagination?.totalPages || 1);
-  }, [search, startDate, endDate, page]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    fetchFaqs();
-  }, [fetchFaqs]);
+    const timer = setTimeout(() => { setQuery(search); setPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const deleteFaq = async (id: string) => {
-    try {
-      toast.dismiss();
-      const res = await fetch(`/api/admin/faqs/${id}`, { method: "DELETE" });
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    async function load() {
+      try {
 
-      if (res.ok) {
-        toast.success("FAQ deleted successfully");
-        fetchFaqs(); // Refresh user list
-      } else {
-        const data = await res.json();
-        toast.error(data?.message || "Failed to delete FAQ");
+        const params = new URLSearchParams({ search: query, startDate, endDate, page: String(page), limit: String(limit) });
+        const res = await fetch(`/api/admin/faqs?${params}`, { signal: controller.signal });
+        if (!res.ok) throw new Error("We couldn’t load FAQs. Please try again.");
+        const data = await res.json().catch(() => { throw new Error("The server returned an invalid response. Please try again."); });
+        if (!Array.isArray(data.data) || data.status === false) throw new Error("We couldn’t load FAQs. Please try again.");
+        if (controller.signal.aborted) return;
+        const pages = Math.max(1, data.pagination?.totalPages || 0);
+        if (page > pages) { setPage(pages); return; }
+        setFAQs(data.data || []);
+        setTotal(data.pagination?.total || 0);
+        setTotalPages(pages);
+      } catch (err) {
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "We couldn’t load FAQs.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
-    } catch (err) {
-      toast.error("Something went wrong while deleting FAQ");
-      console.error(err);
     }
-  };
+    load();
+    return () => controller.abort();
+  }, [query, startDate, endDate, page, limit, attempt]);
+
+  function clearSearch() { setSearch(""); setQuery(""); setStartDate(""); setEndDate(""); setPage(1); }
+  const filtered = Boolean(search || startDate || endDate);
+  const busy = loading || search !== query;
+  const first = total ? (page - 1) * limit + 1 : 0;
+  const pages = Array.from(new Set([1, page - 1, page, page + 1, totalPages])).filter(value => value >= 1 && value <= totalPages).sort((a, b) => a - b);
+
+  async function saveFaq(faq: { _id?: string; question: string; answer: string }): Promise<boolean> {
+    try {
+      const response = await fetch(faq._id ? `/api/admin/faqs/${faq._id}` : "/api/admin/faqs/create", {
+        method: faq._id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: faq.question, answer: faq.answer }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data || data.status === false) throw new Error(data?.message || "Couldn’t save this FAQ. Please try again.");
+      toast.success(faq._id ? "FAQ updated successfully" : "FAQ added successfully");
+      setAttempt(value => value + 1);
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn’t save this FAQ.");
+      return false;
+    }
+  }
+
+  async function deleteFaq(faq: Faq) {
+    if (deleting || !window.confirm(`Delete this FAQ: “${faq.question}”?`)) return;
+    setDeleting(faq._id);
+    try {
+      const response = await fetch(`/api/admin/faqs/${faq._id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Couldn’t delete this FAQ. Please try again.");
+      toast.success("FAQ deleted successfully");
+      setAttempt(value => value + 1);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Couldn’t delete this FAQ.");
+    } finally { setDeleting(null); }
+  }
+
 
   return (
-    <>
-      <div className="container">
-        <div className="row">
-          <div className="col-lg-12">
-            <div className="top-flex-wrapper">
-              <div className="heading-blk">
-                <h2>FAQs</h2>
-              </div>
-              <div className="side-content-blk">
-                <AddFaqModal
-                  onAdd={async (faq) => {
-                    try {
-                      const res = await fetch("/api/admin/faqs/create", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(faq),
-                      });
-
-                      if (res.ok) {
-                        toast.success("FAQ added successfully");
-                        fetchFaqs(); // reload
-                      } else {
-                        toast.error("Failed to add FAQ");
-                      }
-                    } catch (err) {
-                      console.error(err);
-                      toast.error("Error adding FAQ");
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="col-lg-12">
-            <div className="common-table-wrapper pt-0">
-              <div className="tab-content" id="nav-tabContent">
-                <div
-                  className="tab-pane fade show active"
-                  id="nav-main-1"
-                  role="tabpanel"
-                  aria-labelledby="nav-main-1-tab"
-                  tabIndex={0}
-                >
-                  <div className="common-table-filter-wrapper">
-                    <div className="common-left-blk">
-                      <div className="common-search-blk">
-                        <input
-                          type="search"
-                          className="form-control"
-                          placeholder="Search by question/answer"
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                        />
-                        <span className="search-icon">
-                          <i className="bi bi-search" />
-                        </span>
-                      </div>
-                    </div>
-                    <div className="common-right-blk">
-                      <div className="common-calander-blk">
-                        <form>
-                          <fieldset className="custom-fieldset">
-                            <legend className="custom-legend w-auto">
-                              Select Date
-                            </legend>
-                            <div id="reportrange" className="selectdate">
-                              <input
-                                type="date"
-                                className="form-control"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                              />
-                              <input
-                                type="date"
-                                className="form-control"
-                                value={endDate}
-                                min={startDate || undefined}
-                                max={new Date().toISOString().split("T")[0]}
-                                onChange={(e) => setEndDate(e.target.value)}
-                              />
-                            </div>
-                          </fieldset>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="table-blk table-responsive">
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Action</th>
-                          <th>Faq ID</th>
-                          <th>Question</th>
-                          <th>Answers</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {faqs.map((faq) => (
-                          <tr key={faq._id}>
-                            <td>
-                              <span className="td-action">
-                                <button
-                                  className="td-delete-btn"
-                                  onClick={() => deleteFaq(faq._id)}
-                                >
-                                  🗑
-                                </button>
-
-                                <EditModal
-                                  faq={faq}
-                                  onSave={async (updated) => {
-                                    try {
-                                      const res = await fetch(
-                                        `/api/admin/faqs/${updated._id}`,
-                                        {
-                                          method: "PATCH",
-                                          headers: {
-                                            "Content-Type": "application/json",
-                                          },
-                                          body: JSON.stringify({
-                                            question: updated.question,
-                                            answer: updated.answer,
-                                          }),
-                                        }
-                                      );
-
-                                      if (res.ok) {
-                                        toast.success("FAQ updated");
-                                        fetchFaqs();
-                                      } else {
-                                        toast.error("Failed to update FAQ");
-                                      }
-                                    } catch (err) {
-                                      console.error(err);
-                                      toast.error("Error updating FAQ");
-                                    }
-                                  }}
-                                />
-                              </span>
-                            </td>
-                            <td>{faq._id.slice(-6)}</td>
-                            <td className="desc-cell">
-                              <span
-                                className="desc-text"
-                                // data-fulltext={faq.question || ""}
-                              >
-                                {faq.question || "-"}
-                              </span>
-                                <span className="hover-text" data-fulltext={faq.question || ""}></span>
-
-                            </td>
-                            <td className="desc-cell">
-                              <span
-                                className="desc-text"
-                                // data-fulltext={faq.answer || ""}
-                              >
-                                {faq.answer || "-"}
-                              </span>
-                                <span className="hover-text" data-fulltext={faq.answer || ""}></span>
-
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="table-pagination mt-3">
-                    <nav aria-label="Pagination">
-                      <ul className="pagination justify-content-center gap-2 mb-0">
-                        <li
-                          className={`page-item ${page <= 1 ? "disabled" : ""}`}
-                        >
-                          <button
-                            className="page-link"
-                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          >
-                            Previous
-                          </button>
-                        </li>
-                        {Array.from({ length: totalPages }, (_, i) => (
-                          <li
-                            key={i}
-                            className={`page-item ${page === i + 1 ? "active" : ""
-                              }`}
-                          >
-                            <button
-                              className="page-link"
-                              onClick={() => setPage(i + 1)}
-                            >
-                              {i + 1}
-                            </button>
-                          </li>
-                        ))}
-                        <li
-                          className={`page-item ${page >= totalPages ? "disabled" : ""
-                            }`}
-                        >
-                          <button
-                            className="page-link"
-                            onClick={() =>
-                              setPage((p) => Math.min(totalPages || 1, p + 1))
-                            }
-                          >
-                            Next
-                          </button>
-                        </li>
-                      </ul>
-                    </nav>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className={styles.page}>
+      <div className={styles.heading}>
+        <p className={styles.eyebrow}>Help center</p>
+        <h1>FAQs</h1>
+        <p className={styles.subtitle}>Manage the questions and answers that help your users.</p>
+        <div className={styles.addAction}><AddFaqModal onAdd={faq => saveFaq(faq)} /></div>
       </div>
-    </>
+      <section className={styles.card} aria-label="FAQ management">
+        <div className={styles.cardHeading}><span className={styles.cardTitle}><CircleHelp size={19} aria-hidden="true" />{filtered ? "Matching FAQs" : "All FAQs"}<span className={styles.count} aria-live="polite">{busy || error ? "—" : total.toLocaleString()}</span></span></div>
+        <div className={styles.filters}>
+          <label className={styles.searchLabel} htmlFor="faq-search">Search FAQs<span className={styles.searchField}><Search size={18} aria-hidden="true" /><input id="faq-search" type="search" placeholder="Search questions or answers" value={search} onChange={event => setSearch(event.target.value)} /></span></label>
+          <div className={styles.dateFilters}>
+            <label htmlFor="faq-start">Created from<input id="faq-start" type="date" value={startDate} max={endDate || undefined} onChange={event => { setStartDate(event.target.value); setPage(1); }} /></label>
+            <label htmlFor="faq-end">Created to<input id="faq-end" type="date" value={endDate} min={startDate || undefined} onChange={event => { setEndDate(event.target.value); setPage(1); }} /></label>
+          </div>
+          {filtered && <button type="button" className={styles.clearButton} onClick={clearSearch}><X size={15} aria-hidden="true" />Clear filters</button>}
+        </div>
+
+        {error ? <div className={styles.empty} role="alert"><CircleHelp size={32} aria-hidden="true" /><h2>FAQs couldn’t load</h2><p>{error}</p><button className={styles.textButton} onClick={() => setAttempt(value => value + 1)}>Try again</button></div>
+          : busy ? <div className={styles.empty} role="status">Loading FAQs…</div>
+          : faqs.length === 0 ? <div className={styles.empty}><CircleHelp size={36} aria-hidden="true" /><h2>{filtered ? "No matching FAQs" : "No FAQs yet"}</h2><p>{filtered ? "Try another question, answer, or date range." : "Add your first question using Add FAQ."}</p>{filtered && <button className={styles.textButton} onClick={clearSearch}>Clear filters</button>}</div>
+          : <div className={styles.tableScroll} role="region" aria-label="FAQs table" tabIndex={0}>
+            <table className={styles.table}>
+              <thead><tr><th scope="col">Question</th><th scope="col">Answer</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
+              <tbody>{faqs.map(faq => <tr key={faq._id}>
+                <td><div className={styles.identity}><span className={styles.faqIcon}><CircleHelp size={20} aria-hidden="true" /></span><div><span className={styles.name}>{faq.question || "Untitled question"}</span><span className={styles.faqId}>#{faq._id.slice(-6)}</span></div></div></td>
+                <td><p className={styles.description}>{faq.answer || "No answer added."}</p></td>
+                <td><div className={styles.actions}><EditModal faq={faq} onSave={saveFaq} /><button type="button" className={styles.deleteButton} disabled={deleting !== null} onClick={() => deleteFaq(faq)} aria-label={`Delete FAQ: ${faq.question}`} title="Delete FAQ"><Trash2 size={17} aria-hidden="true" /></button></div></td>
+              </tr>)}</tbody>
+            </table>
+          </div>}
+
+        <div className={styles.footer}>
+          <div className={styles.results}><label htmlFor="faq-limit">Rows per page<select id="faq-limit" value={limit} onChange={event => { setLimit(Number(event.target.value)); setPage(1); }}>{[10, 25, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}</select></label><span aria-live="polite">{error ? "Results unavailable" : busy ? "Loading…" : `${first}–${Math.min(page * limit, total)} of ${total.toLocaleString()}`}</span></div>
+          <nav className={styles.pagination} aria-label="FAQ list pages"><button disabled={busy || Boolean(error) || page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))} aria-label="Previous page"><ChevronLeft size={17} aria-hidden="true" /></button>{pages.map((number, index) => <span className={styles.pageItem} key={number}>{index > 0 && number - pages[index - 1] > 1 && <span className={styles.ellipsis}>…</span>}<button disabled={busy || Boolean(error)} aria-label={`Page ${number}`} aria-current={page === number ? "page" : undefined} onClick={() => setPage(number)}>{number}</button></span>)}<button disabled={busy || Boolean(error) || page >= totalPages} onClick={() => setPage(value => Math.min(totalPages, value + 1))} aria-label="Next page"><ChevronRight size={17} aria-hidden="true" /></button></nav>
+        </div>
+      </section>
+    </div>
   );
 }

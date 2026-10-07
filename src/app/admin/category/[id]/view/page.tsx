@@ -30,7 +30,7 @@ export default function ActivityDetailsPage() {
       try {
         const res = await fetch(`/api/admin/category/${id}`);
         const data = await res.json();
-        console.log(data);
+        if (!res.ok) throw new Error("Category could not load");
         setActivity(data.category);
       } catch (err) {
         console.error("Failed to fetch activity", err);
@@ -43,7 +43,7 @@ export default function ActivityDetailsPage() {
   }, [id]);
 
   if (loading) return <div className="p-6">Loading...</div>;
-  if (!activity) return <div className="p-6">Activity not found.</div>;
+  if (!activity) return <div className="p-6">Category unavailable. Please reload the page.</div>;
 
   return (
     <>
@@ -51,7 +51,7 @@ export default function ActivityDetailsPage() {
         <div className="col-lg-8">
           <div className="bg-white rounded-2xl shadow-md p-5">
             <div className="mb-4">
-              <h1 className="mb-2 fs-14"> Activity Name:</h1>
+              <h1 className="mb-2 fs-14"> Category Name:</h1>
               <p className="fs-16 text-gray-900 mb-0">{activity.name}</p>
             </div>
 

@@ -1,12 +1,10 @@
 "use client";
 
-import { Trash2Icon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, Search, Trash2, Users, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import styles from "./users.module.css";
 
-/**
- * User record shape for admin users dashboard table.
- */
 type User = {
   _id: string;
   name: string;
@@ -15,269 +13,135 @@ type User = {
   createdAt: string;
 };
 
-/**
- * Admin User Management Page Component
- * Allows admin users to list registered users, search by name/email, filter by date,
- * toggle block status, and delete user records.
- */
+function joinedDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function AdminUserListPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [limit, setLimit] = useState(10);
-
-  /**
-   * Fetches paginated user data from API based on filter parameters.
-   */
-  const fetchUsers = useCallback(async () => {
-    try {
-      const params = new URLSearchParams({
-        search,
-        startDate,
-        endDate,
-        page: String(page),
-        limit: String(limit),
-      });
-      const res = await fetch(`/api/admin/users?${params.toString()}`);
-      const data = await res.json();
-      setUsers(data.users || []);
-      setTotalPages(data.totalPages || 1);
-    } catch (err) {
-      console.error("Failed to fetch users:", err);
-      toast.error("Failed to load user list.");
-    }
-  }, [search, startDate, endDate, page, limit]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
+  const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    const timer = setTimeout(() => { setQuery(search); setPage(1); }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  /**
-   * Toggles active/blocked status of a user.
-   */
-  const toggleBlock = async (id: string) => {
-    try {
-      toast.dismiss();
-      const res = await fetch(`/api/admin/users/${id}`, { method: "PATCH" });
-      if (res.ok) {
-        toast.success("User status updated successfully");
-        fetchUsers();
-      } else {
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    async function loadUsers() {
+      try {
+        const params = new URLSearchParams({ search: query, startDate, endDate, page: String(page), limit: String(limit) });
+        const res = await fetch(`/api/admin/users?${params}`, { signal: controller.signal });
+        if (!res.ok) throw new Error("We couldn’t load users. Please try again.");
         const data = await res.json();
-        toast.error(data?.message || "Failed to update user status");
+        if (controller.signal.aborted) return;
+        const pages = Math.max(1, data.totalPages || 0);
+        if (page > pages) { setPage(pages); return; }
+        setUsers(data.users || []);
+        setTotal(data.total || 0);
+        setTotalPages(pages);
+      } catch (err) {
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "We couldn’t load users.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
-    } catch (err) {
-      toast.error("Something went wrong while updating user status");
-      console.error(err);
     }
-  };
+    loadUsers();
+    return () => controller.abort();
+  }, [query, startDate, endDate, page, limit, refresh]);
 
-  /**
-   * Permanently deletes a user account.
-   */
-  const deleteUser = async (id: string) => {
+  async function deleteUser(user: User) {
+    if (pending) return;
+    if (!window.confirm(`Delete ${user.name || user.email}? This permanently removes the account.`)) return;
+    setPending(user._id);
     try {
-      toast.dismiss();
-      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
-
-      if (res.ok) {
-        toast.success("User deleted successfully");
-        fetchUsers();
-      } else {
+      const res = await fetch(`/api/admin/users/${user._id}`, { method: "DELETE" });
+      if (!res.ok) {
         const data = await res.json();
-        toast.error(data?.message || "Failed to delete user");
+        throw new Error(data.message || "Couldn’t update this user.");
       }
+      toast.success("User deleted successfully");
+      setRefresh(value => value + 1);
     } catch (err) {
-      toast.error("Something went wrong while deleting user");
-      console.error(err);
-    }
-  };
+      toast.error(err instanceof Error ? err.message : "Couldn’t update this user.");
+    } finally { setPending(null); }
+  }
+
+  function clearFilters() {
+    setSearch(""); setQuery(""); setStartDate(""); setEndDate(""); setPage(1);
+  }
+
+  const filtered = Boolean(search || startDate || endDate);
+  const busy = loading || search !== query;
+  const first = total ? (page - 1) * limit + 1 : 0;
+  const last = Math.min(page * limit, total);
+  const pageNumbers = Array.from(new Set([1, page - 1, page, page + 1, totalPages]))
+    .filter(value => value >= 1 && value <= totalPages).sort((a, b) => a - b);
 
   return (
-    <div className="container">
-      <div className="row">
-        <div className="col-lg-12">
-          <div className="top-flex-wrapper">
-            <div className="heading-blk">
-              <h2>User Management</h2>
-            </div>
-          </div>
-        </div>
-        <div className="col-lg-12">
-          <div className="common-table-wrapper pt-0">
-            <div className="tab-content" id="nav-tabContent">
-              <div
-                className="tab-pane fade show active"
-                id="nav-main-1"
-                role="tabpanel"
-                aria-labelledby="nav-main-1-tab"
-                tabIndex={0}
-              >
-                <div className="common-table-filter-wrapper">
-                  <div className="common-left-blk">
-                    <div className="common-sort-blk">
-                      <select
-                        className="form-select"
-                        value={limit}
-                        onChange={(e) => setLimit(Number(e.target.value))}
-                      >
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                      </select>
-                    </div>
-                    <div className="common-search-blk">
-                      <input
-                        type="search"
-                        className="form-control"
-                        placeholder="Search by name/email"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                      />
-                      <span className="search-icon">
-                        <i className="bi bi-search" />
-                      </span>
-                    </div>
-                  </div>
-                  <div className="common-right-blk">
-                    <div className="common-calander-blk">
-                      <form onSubmit={(e) => e.preventDefault()}>
-                        <fieldset className="custom-fieldset">
-                          <legend className="custom-legend w-auto">
-                            Select Date
-                          </legend>
-                          <div id="reportrange" className="selectdate">
-                            <input
-                              type="date"
-                              className="form-control"
-                              value={startDate}
-                              onChange={(e) => setStartDate(e.target.value)}
-                            />
-                            <input
-                              type="date"
-                              className="form-control"
-                              value={endDate}
-                              min={startDate || undefined}
-                              max={new Date().toISOString().split("T")[0]}
-                              onChange={(e) => setEndDate(e.target.value)}
-                            />
-                          </div>
-                        </fieldset>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-                <div className="table-blk table-responsive">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Action</th>
-                        <th>User ID</th>
-                        <th>User Name</th>
-                        <th>Email Address</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map((user) => (
-                        <tr key={user._id}>
-                          <td>
-                            <span className="td-action">
-                              <button
-                                className="td-delete-btn"
-                                onClick={() => deleteUser(user._id)}
-                                title="Delete User"
-                              >
-                                <Trash2Icon />
-                              </button>
-                              <span className="td-toggle-box">
-                                <input
-                                  type="checkbox"
-                                  className="d-none"
-                                  id={`toggle_${user._id}`}
-                                  checked={!user.isBlocked}
-                                  onChange={() => toggleBlock(user._id)}
-                                />
-                                <label htmlFor={`toggle_${user._id}`} title={user.isBlocked ? "Unblock User" : "Block User"} />
-                              </span>
-                            </span>
-                          </td>
-                          <td>{user._id.slice(-6)}</td>
-                          <td>{user.name}</td>
-                          <td>{user.email}</td>
-                          <td>
-                            <span
-                              className={`td-status ${
-                                user.isBlocked ? "st-inactive" : "st-active"
-                              }`}
-                            >
-                              {user.isBlocked ? "Blocked" : "Active"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="table-pagination mt-3">
-                  <nav aria-label="Pagination">
-                    <ul className="pagination justify-content-center gap-2 mb-0">
-                      <li className={`page-item ${page <= 1 ? "disabled" : ""}`}>
-                        <button className="page-link" onClick={() => setPage(page - 1)}>
-                          Previous
-                        </button>
-                      </li>
-
-                      {Array.from({ length: Math.min(3, totalPages) }, (_, i) => i + 1).map(
-                        (num) => (
-                          <li
-                            key={num}
-                            className={`page-item ${page === num ? "active" : ""}`}
-                          >
-                            <button className="page-link" onClick={() => setPage(num)}>
-                              {num}
-                            </button>
-                          </li>
-                        )
-                      )}
-
-                      {totalPages > 5 && (
-                        <li className="page-item disabled">
-                          <span className="page-link">...</span>
-                        </li>
-                      )}
-
-                      {totalPages > 3 &&
-                        [totalPages - 1, totalPages].map((num) => (
-                          num > 3 && (
-                            <li
-                              key={num}
-                              className={`page-item ${page === num ? "active" : ""}`}
-                            >
-                              <button className="page-link" onClick={() => setPage(num)}>
-                                {num}
-                              </button>
-                            </li>
-                          )
-                        ))}
-
-                      <li className={`page-item ${page >= totalPages ? "disabled" : ""}`}>
-                        <button className="page-link" onClick={() => setPage(page + 1)}>
-                          Next
-                        </button>
-                      </li>
-                    </ul>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className={styles.page}>
+      <div className={styles.heading}>
+        <div><p className={styles.eyebrow}>People</p><h1>Users</h1><p className={styles.subtitle}>View registered users and manage account access.</p></div>
+        <div className={styles.count} aria-live="polite"><Users size={20} aria-hidden="true" /><div><strong>{busy || error ? "—" : total.toLocaleString()}</strong><span>{filtered ? "Matching users" : "Registered users"}</span></div></div>
       </div>
+
+      <section className={styles.card} aria-label="User management">
+        <div className={styles.filters}>
+          <label className={styles.searchLabel} htmlFor="user-search">Search users
+            <span className={styles.searchField}><Search size={18} aria-hidden="true" /><input id="user-search" type="search" placeholder="Search by name or email" value={search} onChange={event => setSearch(event.target.value)} /></span>
+          </label>
+          <div className={styles.dateFilters}>
+            <label htmlFor="user-start-date">Joined from<input id="user-start-date" type="date" value={startDate} max={endDate || undefined} onChange={event => { setStartDate(event.target.value); setPage(1); }} /></label>
+            <label htmlFor="user-end-date">Joined to<input id="user-end-date" type="date" value={endDate} min={startDate || undefined} onChange={event => { setEndDate(event.target.value); setPage(1); }} /></label>
+          </div>
+          {filtered && <button className={styles.clearButton} type="button" onClick={clearFilters}><X size={15} aria-hidden="true" />Clear filters</button>}
+        </div>
+
+        {error ? <div className={styles.empty} role="alert"><Users size={32} aria-hidden="true" /><h2>Users couldn’t load</h2><p>{error}</p><button className={styles.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div>
+          : busy ? <div className={styles.empty} role="status"><span className={styles.loadingDot} />Loading users…</div>
+          : users.length === 0 ? <div className={styles.empty}><Users size={36} aria-hidden="true" /><h2>{filtered ? "No matching users" : "No users yet"}</h2><p>{filtered ? "Try another name, email, or date range." : "Registered accounts will appear here."}</p>{filtered && <button className={styles.textButton} onClick={clearFilters}>Clear filters</button>}</div>
+          : <div className={styles.tableScroll} role="region" aria-label="Users table" tabIndex={0}>
+            <table className={styles.table}>
+              <thead><tr><th scope="col">User</th><th scope="col">User ID</th><th scope="col">Joined</th><th scope="col">Status</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
+              <tbody>{users.map(user => {
+                const name = user.name?.trim() || "Unnamed user";
+                const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+                return <tr key={user._id}>
+                  <td><div className={styles.identity}><span className={styles.avatar} aria-hidden="true">{initials}</span><div><span className={styles.name}>{name}</span><span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
+                  <td><span className={styles.userId} title={user._id}>#{user._id.slice(-6)}</span></td>
+                  <td className={styles.date}>{joinedDate(user.createdAt)}</td>
+                  <td><span className={`${styles.badge} ${user.isBlocked ? styles.blocked : styles.active}`}><span aria-hidden="true" />{user.isBlocked ? "Blocked" : "Active"}</span></td>
+                  <td><div className={styles.actions}>
+                    <button type="button" className={styles.deleteButton} disabled={pending !== null} onClick={() => deleteUser(user)} aria-label={`Delete ${name}`} title="Delete user"><Trash2 size={17} aria-hidden="true" /></button>
+                  </div></td>
+                </tr>;
+              })}</tbody>
+            </table>
+          </div>}
+
+        <div className={styles.footer}>
+          <div className={styles.results}><label htmlFor="users-per-page">Rows per page<select id="users-per-page" value={limit} onChange={event => { setLimit(Number(event.target.value)); setPage(1); }}>{[10, 25, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}</select></label><span aria-live="polite">{error ? "Results unavailable" : busy ? "Loading…" : `${first}–${last} of ${total.toLocaleString()}`}</span></div>
+          <nav className={styles.pagination} aria-label="User list pages">
+            <button type="button" disabled={busy || Boolean(error) || page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))} aria-label="Previous page"><ChevronLeft size={17} aria-hidden="true" /></button>
+            {pageNumbers.map((number, index) => <span key={number} className={styles.pageItem}>{index > 0 && number - pageNumbers[index - 1] > 1 && <span className={styles.ellipsis}>…</span>}<button type="button" aria-label={`Page ${number}`} aria-current={page === number ? "page" : undefined} disabled={busy || Boolean(error)} onClick={() => setPage(number)}>{number}</button></span>)}
+            <button type="button" disabled={busy || Boolean(error) || page >= totalPages} onClick={() => setPage(value => Math.min(totalPages, value + 1))} aria-label="Next page"><ChevronRight size={17} aria-hidden="true" /></button>
+          </nav>
+        </div>
+      </section>
     </div>
   );
 }

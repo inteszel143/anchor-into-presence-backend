@@ -17,6 +17,7 @@ next-env.d.ts
 .DS_Store
 .vercel/
 *.log
+__pycache__/
 
 # Private keys
 *.pem

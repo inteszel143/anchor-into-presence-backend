@@ -1,0 +1,73 @@
+name: Backend checks and AWS deployment
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.2'
+      - name: Reject tracked credentials
+        shell: bash
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.)|serviceAccountKey\.json$|\.(pem|key)$' | grep -vE '(^|/)\.env\.example$'; then
+            echo 'Credential file tracked; remove it before deployment.'
+            exit 1
+          fi
+      - run: npm ci
+      - run: node --test tests/*.test.cjs
+      - run: bash -n scripts/deploy-aws.sh
+      - run: python3 -m unittest discover -s tests -p 'deploy_script_test.py'
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.ENABLE_PRODUCTION_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    concurrency:
+      group: meditation-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Deploy exact tested commit
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ -n "$DEPLOY_SSH_KEY" && -n "$DEPLOY_KNOWN_HOSTS" ]]
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          trap 'rm -f "$HOME/.ssh/deploy_key"' EXIT
+          ssh_options=(-i "$HOME/.ssh/deploy_key" -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20)
+          target="$DEPLOY_USER@$DEPLOY_HOST"
+          remote=$(ssh "${ssh_options[@]}" "$target" 'umask 077; mktemp -d /tmp/meditation-deploy.XXXXXXXX')
+          [[ "$remote" =~ ^/tmp/meditation-deploy\.[a-zA-Z0-9]+$ ]]
+          git archive --format=tar.gz --output=release.tar.gz "$GITHUB_SHA"
+          scp "${ssh_options[@]}" release.tar.gz scripts/deploy-aws.sh "$target:$remote/"
+          ssh "${ssh_options[@]}" "$target" "bash '$remote/deploy-aws.sh' '$remote/release.tar.gz' '$GITHUB_SHA'"
+          ssh "${ssh_options[@]}" "$target" "rm -f '$remote/release.tar.gz' '$remote/deploy-aws.sh'; rmdir '$remote'"

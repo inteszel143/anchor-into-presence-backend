@@ -66,6 +66,7 @@ export default function AdminProfilePage() {
         toast.success("Profile updated successfully.");
 
         localStorage.setItem("name", name);
+        localStorage.setItem("email", email);
         if (data.image) {
           setImageUrl(data.image); // update preview
           localStorage.setItem("image", data.image);
@@ -74,7 +75,7 @@ export default function AdminProfilePage() {
 
         setImageFile(null);
       } else {
-        toast.error(data?.message || "Failed to delete user.");
+        toast.error(data?.message || "Failed to update profile.");
       }
     } catch (err) {
       toast.error("An error occurred while updating profile.");

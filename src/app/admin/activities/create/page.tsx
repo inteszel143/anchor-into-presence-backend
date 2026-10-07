@@ -1,9 +1,14 @@
 "use client";
 
+import { activityFileSizeError } from "@/lib/activityUploadLimits";
 import { useEffect, useState } from "react";
+import { uploadActivity } from "@/lib/uploadActivity";
+import { isDailyPauseCategory } from "@/lib/activityMedia";
 import { useRouter } from "next/navigation";
+import { LoaderCircle, Plus } from "lucide-react";
 import Select from "react-select";
 import { toast } from "react-toastify";
+import styles from "../activity-form.module.css";
 
 type Category = {
   _id: string;
@@ -43,10 +48,13 @@ export default function CreateActivityPage() {
   const [scheduleTime, setScheduleTime] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
   const router = useRouter();
+
+  const isDailyPause = isDailyPauseCategory(categories.find(cat => cat._id === selectedCategory)?.name);
 
   const categoryOptions: OptionType[] = categories.map((cat) => ({
     value: cat._id,
@@ -55,21 +63,34 @@ export default function CreateActivityPage() {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      const res = await fetch("/api/admin/category/dropdown");
-      const data = await res.json();
-      setCategories(data.data || []);
+      try {
+        const res = await fetch("/api/admin/category/dropdown");
+        if (!res.ok) throw new Error("Unable to load categories");
+        const data = await res.json();
+        setCategories(data.data || []);
+      } catch {
+        toast.error("Couldn’t load categories. Reload the page to try again.");
+      }
     };
     fetchCategories();
   }, []);
 
+  useEffect(() => () => {
+    if (mediaPreview?.startsWith("blob:")) URL.revokeObjectURL(mediaPreview);
+  }, [mediaPreview]);
+  useEffect(() => () => {
+    if (thumbnailPreview?.startsWith("blob:")) URL.revokeObjectURL(thumbnailPreview);
+  }, [thumbnailPreview]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     toast.dismiss()
     toast.clearWaitingQueue();
     if (
       !name ||
       !description ||
-      !durationInMinutes ||
+      (!isDailyPause && !durationInMinutes) ||
       !contentId ||
       !contentType ||
       !thumbnailFile ||
@@ -79,17 +100,23 @@ export default function CreateActivityPage() {
       return;
     }
 
+    setUploadProgress(0);
+    const sizeError = activityFileSizeError(isDailyPause ? null : mediaFile, contentType === "Audio" ? "Audio" : "Video")
+      || activityFileSizeError(thumbnailFile, "Image");
+    if (sizeError) { toast.error(sizeError); return; }
     setLoading(true);
+    try {
+
 
     const formData = new FormData();
     formData.append("name", name);
     formData.append("description", description);
     formData.append("tags", tags);
     formData.append("category", selectedCategory);
-    formData.append("duration", String(durationInMinutes));
+    formData.append("duration", isDailyPause ? "0" : String(durationInMinutes));
     formData.append("contentId", contentId);
-    formData.append("contentType", contentType);
-    if (mediaFile) {
+    formData.append("contentType", isDailyPause ? "Image" : contentType);
+    if (!isDailyPause && mediaFile) {
       formData.append("media", mediaFile);
     }
     formData.append("thumbnail", thumbnailFile);
@@ -97,257 +124,316 @@ export default function CreateActivityPage() {
     formData.append("scheduleDate", scheduleDate);
     formData.append("scheduleTime", scheduleTime);
 
-    const res = await fetch("/api/admin/activities/create", {
-      method: "POST",
-      body: formData,
-    });
+    const res = await uploadActivity(formData, setUploadProgress);
 
     if (res.ok) {
       toast.success("Activity created successfully.");
       router.push("/admin/activities"); // Redirect to list page
     } else {
-      const data = await res.json();
-      toast.error(data.message || "Failed to create activity.");
+      toast.error(res.message || "Failed to create activity.");
     }
 
-    setLoading(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="row justify-content-center">
-      <div className="col-lg-8">
-        <div className="common-content-wrapper">
-          <div className="sub-heading">
-            <h2>Create Activity</h2>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Name */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Activity Name</label>
-              <input
-                type="text"
-                className="form-control"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Description */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Description</label>
-              <textarea
-                className="form-control"
-                rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                required
-              ></textarea>
-            </div>
-            {/* Schedule Publish */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium mb-1">Schedule Publish</label>
-              <div className="common-check-blk">
-                <input
-                  type="checkbox"
-                  className="d-none"
-                  id="schedulePublish"
-                  checked={schedulePublish}
-                  onChange={(e) => setSchedulePublish(e.target.checked)}
-                />
-                <label htmlFor="schedulePublish" />
-              </div>
-            </div>
-
-            {schedulePublish && (
-              <div className="row mb-3">
-                <div className="col-md-6">
-                  <label className="block text-sm font-medium">Schedule Date</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    required={schedulePublish}
-                  />
-                </div>
-                <div className="col-md-6">
-                  <label className="block text-sm font-medium">Schedule Time</label>
-                  <input
-                    type="time"
-                    className="form-control"
-                    value={scheduleTime}
-                    onChange={(e) => setScheduleTime(e.target.value)}
-                    required={schedulePublish}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Tags */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Tags (comma separated)</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="relax, stress, yoga"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-            </div>
-
-            {/* Duration */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Duration</label>
-
-              <div className="d-flex gap-2">
-                <input
-                  type="number"
-                  className="form-control"
-                  placeholder="Hours"
-                  min={0}
-                  value={durationHours}
-                  onChange={(e) => setDurationHours(e.target.value)}
-                  required
-                />
-
-                <input
-                  type="number"
-                  className="form-control"
-                  placeholder="Minutes"
-                  min={0}
-                  max={59}
-                  value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Content ID */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Content ID</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="002"
-                value={contentId}
-                onChange={(e) => setContentId(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Content Type */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Content Type</label>
-              <select
-                className="form-control"
-                value={contentType}
-                onChange={(e) => {
-                  setContentType(e.target.value);
-                  setMediaFile(null);
-                  setMediaPreview(null);
-                }}
-              >
-                <option value="Video">Video</option>
-                <option value="Audio">Audio</option>
-              </select>
-            </div>
-
-            {/* Category */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Category</label>
-              <Select
-                options={categoryOptions}
-                value={categoryOptions.find((opt) => opt.value === selectedCategory) || null}
-                onChange={(opt) => setSelectedCategory(opt ? opt.value : "")}
-              />
-            </div>
-
-            {/* Video Upload */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">
-                {contentType} Upload
-              </label>
-
-              <input
-                type="file"
-                accept={contentType === "Video" ? "video/*" : "audio/*"}
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  setMediaFile(file);
-
-                  if (file) {
-                    setMediaPreview(URL.createObjectURL(file));
-                  } else {
-                    setMediaPreview(null);
-                  }
-                }}
-              />
-              <br />
-
-              {/* Video Preview */}
-              {mediaPreview && contentType === "Video" && (
-                <video
-                  src={mediaPreview}
-                  controls
-                  className="w-full max-h-96 border rounded mt-2"
-                />
-              )}
-
-              {/* Audio Preview */}
-              {mediaPreview && contentType === "Audio" && (
-                <audio
-                  src={mediaPreview}
-                  controls
-                  className="w-full mt-2"
-                />
-              )}
-            </div>
-
-
-            {/* Thumbnail Upload */}
-            <div className="mb-3">
-              <label className="block text-sm font-medium">Thumbnail Upload</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  setThumbnailFile(file);
-                  if (file) {
-                    setThumbnailPreview(URL.createObjectURL(file));
-                  } else {
-                    setThumbnailPreview(null);
-                  }
-                }}
-                required
-              />
-              <br />
-              {thumbnailPreview && (
-                <img
-                  src={thumbnailPreview}
-                  alt="Thumbnail Preview"
-                  className="w-48 mt-2 border rounded"
-                />
-              )}
-            </div>
-
-
-
-            {/* Submit */}
-            <div className="hstack justify-content-end mt-3">
-              <button
-                type="submit"
-                className="btn btn-primary px-5 py-2 rounded"
-                disabled={loading}
-              >
-                {loading ? "Submitting..." : "Create Activity"}
-              </button>
-            </div>
-          </form>
-        </div>
+    <div className={styles.page}>
+      <div className={styles.heading}>
+        <p className={styles.eyebrow}>Activity library</p>
+        <h1>Add activity</h1>
+        <p className={styles.subtitle}>Create a new activity for your library.</p>
       </div>
+      <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={styles.layout}>
+          <div className={styles.column}>
+            <section className={styles.card} aria-labelledby="activity-details">
+              <div className={styles.cardHeading}>
+                <h2 id="activity-details">Activity details</h2>
+                <p>Name, describe, and organize your activity.</p>
+              </div>
+              <div className={styles.cardBody}>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-name">Activity Name</label>
+                  <input id="activity-name"
+                    type="text"
+                    className={styles.input}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-description">Description</label>
+                  <textarea id="activity-description"
+                    className={styles.input}
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                  ></textarea>
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-category">Category</label>
+                  <Select inputId="activity-category" instanceId="activity-category" classNamePrefix="activity-select"
+                    options={categoryOptions}
+                    value={categoryOptions.find((opt) => opt.value === selectedCategory) || null}
+                    onChange={(opt) => setSelectedCategory(opt ? opt.value : "")}
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-tags">Tags (comma separated)</label>
+                  <input id="activity-tags"
+                    type="text"
+                    className={styles.input}
+                    placeholder="relax, stress, yoga"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                  />
+                </div>
+              </div>
+            </section>
+            <section className={styles.card} aria-labelledby="activity-media">
+              <div className={styles.cardHeading}>
+                <h2 id="activity-media">{isDailyPause ? "Daily Pause image" : "Media & thumbnail"}</h2>
+                <p>{isDailyPause ? "Upload the image people will see when they open this pause." : "Upload your activity media and cover image."}</p>
+              </div>
+              <div className={styles.cardBody}>
+                {!isDailyPause && <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-video-upload">
+                    {contentType} Upload
+                  </label>
+
+                  <p id="media-size-hint">Maximum file size: 100 MB.</p>
+                  <input aria-describedby="media-size-hint" id="activity-video-upload"
+                    type="file"
+                    className={styles.fileInput}
+                    accept={contentType === "Video" ? "video/*" : "audio/*"}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      const error = activityFileSizeError(file, contentType === "Audio" ? "Audio" : "Video");
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                        setMediaFile(null);
+                        setMediaPreview(null);
+                        return;
+                      }
+                      setMediaFile(file);
+
+                      if(file) {
+                        setMediaPreview(URL.createObjectURL(file));
+                      } else {
+                        setMediaPreview(null);
+                      }
+                    }}
+                  />
+
+
+                  {/* Video Preview */}
+                  {mediaPreview && contentType === "Video" && (
+                    <video
+                      src={mediaPreview}
+                      controls
+                      className={styles.videoPreview}
+                    />
+                  )}
+
+                  {/* Audio Preview */}
+                  {mediaPreview && contentType === "Audio" && (
+                    <audio
+                      src={mediaPreview}
+                      controls
+                      className={styles.audioPreview}
+                    />
+                  )}
+                </div>}
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-thumbnail-upload">{isDailyPause ? "Static / quote image" : "Thumbnail Upload"}</label>
+                  <p id="image-size-hint">Maximum image size: 10 MB.</p>
+                  <input aria-describedby="image-size-hint" id="activity-thumbnail-upload"
+                    type="file"
+                    className={styles.fileInput}
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      const error = activityFileSizeError(file, "Image");
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                        setThumbnailFile(null);
+                        setThumbnailPreview(null);
+                        return;
+                      }
+                      setThumbnailFile(file);
+                      if(file) {
+                        setThumbnailPreview(URL.createObjectURL(file));
+                      } else {
+                        setThumbnailPreview(null);
+                      }
+                    }}
+                    required
+                  />
+
+                  {thumbnailPreview && (
+                    <img
+                      src={thumbnailPreview}
+                      alt={isDailyPause ? "Daily Pause preview" : "Thumbnail preview"}
+                      className={isDailyPause ? styles.pausePreview : styles.thumbnailPreview}
+                    />
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
+          <div className={styles.column}>
+            <section className={styles.card} aria-labelledby="activity-settings">
+              <div className={styles.cardHeading}>
+                <h2 id="activity-settings">Content settings</h2>
+                <p>{isDailyPause ? "Daily Pauses use a static image." : "Set the content type, identifier, and duration."}</p>
+              </div>
+              <div className={styles.cardBody}>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-content-type">Content Type</label>
+                  <select id="activity-content-type"
+                    className={styles.input}
+                    value={isDailyPause ? "Image" : contentType}
+                    disabled={isDailyPause}
+                    onChange={(e) => {
+                      setContentType(e.target.value);
+                      setMediaFile(null);
+                      setMediaPreview(null);
+                    }}
+                  >
+                    {isDailyPause && <option value="Image">Image</option>}
+                    <option value="Video">Video</option>
+                    <option value="Audio">Audio</option>
+                  </select>
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="activity-content-id">Content ID</label>
+                  <input id="activity-content-id"
+                    type="text"
+                    className={styles.input}
+                    placeholder="002"
+                    value={contentId}
+                    onChange={(e) => setContentId(e.target.value)}
+                    required
+                  />
+                </div>
+                {!isDailyPause && <div className={styles.field}>
+                  <span className={styles.label}>Duration</span>
+
+                  <div className={styles.twoFields}>
+                    <input
+                      type="number"
+                      className={styles.input}
+                      placeholder="Hours"
+                      aria-label="Duration in hours"
+                      min={0}
+                      value={durationHours}
+                      onChange={(e) => setDurationHours(e.target.value)}
+                      required
+                    />
+
+                    <input
+                      type="number"
+                      className={styles.input}
+                      placeholder="Minutes"
+                      aria-label="Duration in minutes"
+                      min={0}
+                      max={59}
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>}
+              </div>
+            </section>
+            <section className={styles.card} aria-labelledby="activity-publishing">
+              <div className={styles.cardHeading}>
+                <h2 id="activity-publishing">Publishing</h2>
+                <p>Choose whether to schedule this activity.</p>
+              </div>
+              <div className={styles.cardBody}>
+                <div className={styles.scheduleToggle}>
+                  <label className={styles.label} htmlFor="schedulePublish">Schedule publish</label>
+                  <div className={styles.toggleControl}>
+                    <input
+                      type="checkbox"
+                      className={styles.checkbox}
+                      id="schedulePublish"
+                      checked={schedulePublish}
+                      onChange={(e) => setSchedulePublish(e.target.checked)}
+                    />
+
+                  </div>
+                </div>
+
+                {schedulePublish && (
+                  <div className={styles.twoFields}>
+                    <div className={styles.field}>
+                      <label className={styles.label} htmlFor="schedule-date">Schedule Date</label>
+                      <input
+                        type="date" id="schedule-date"
+                        className={styles.input}
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        required={schedulePublish}
+                      />
+                    </div>
+                    <div className={styles.field}>
+                      <label className={styles.label} htmlFor="schedule-time">Schedule Time</label>
+                      <input
+                        type="time" id="schedule-time"
+                        className={styles.input}
+                        value={scheduleTime}
+                        onChange={(e) => setScheduleTime(e.target.value)}
+                        required={schedulePublish}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+        <div className={styles.actions}>
+          {loading && (
+            <div className={styles.uploadStatus}>
+              <span className={styles.statusIcon} aria-hidden="true">
+                <LoaderCircle size={20} className={styles.spinner} />
+              </span>
+              <div className={styles.statusContent}>
+                <div role="status" aria-live="polite" aria-atomic="true">
+                  <p className={styles.statusTitle}>
+                    {uploadProgress < 100 ? "Uploading files" : "Saving your activity"}
+                  </p>
+                  <p className={styles.statusDescription}>
+                    {uploadProgress < 100
+                      ? "Please keep this page open while your files upload."
+                      : "Files received. Finishing up—please keep this page open."}
+                  </p>
+                </div>
+                {uploadProgress < 100 && (
+                  <div className={styles.progressRow}>
+                    <progress className={styles.uploadProgress} value={uploadProgress} max={100} aria-label="File upload progress" />
+                    <span className={styles.progressValue} aria-hidden="true">{uploadProgress}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <button type="submit" className={styles.submit} disabled={loading} aria-busy={loading}>
+            {!loading && <Plus size={18} aria-hidden="true" />}
+            {loading ? (uploadProgress < 100 ? "Uploading…" : "Saving…") : "Create activity"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

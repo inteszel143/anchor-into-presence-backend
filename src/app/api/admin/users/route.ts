@@ -27,11 +27,16 @@ export async function GET(req: NextRequest) {
   if (startDate || endDate) {
     query.createdAt = {};
     if (startDate) query.createdAt.$gte = new Date(startDate);
-    if (endDate) query.createdAt.$lte = new Date(endDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setUTCHours(23, 59, 59, 999);
+      query.createdAt.$lte = end;
+    }
   }
 
   const total = await User.countDocuments(query);
   const users = await User.find(query)
+    .select("name email isBlocked createdAt")
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit);

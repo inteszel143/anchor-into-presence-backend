@@ -12,7 +12,7 @@ export default function Home() {
     if (!token) {
       router.push("/admin/login");
     } else {
-      router.push("/admin/users");
+      router.push("/admin/dashboard");
     }
   }, [router]);
 

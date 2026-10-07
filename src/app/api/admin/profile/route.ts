@@ -4,15 +4,17 @@ import { connectDB } from "@/lib/db";
 import { Admin } from "@/models/Admin";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "sonhondFGB4BUb^bhS65468W6yvMBmW81@jhkd9nwdk6312165";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // 🔐 Auth helper
 function authenticate(headers: Headers): string {
+  if (!JWT_SECRET) throw new Error("Authentication is not configured");
   const authHeader = headers.get("authorization");
   const token = authHeader?.split(" ")[1];
   if (!token) throw new Error("Unauthorized");
 
-  const decoded = jwt.verify(token, JWT_SECRET) as { adminId: string };
+  const decoded = jwt.verify(token, JWT_SECRET) as { adminId: string; role: string };
+  if (decoded.role !== "admin" || !decoded.adminId) throw new Error("Unauthorized");
   return decoded.adminId;
 }
 
