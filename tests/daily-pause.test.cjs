@@ -172,7 +172,7 @@ test('video and thumbnail uploads overlap, and saving waits for both', async () 
   assert.equal(app.saved().video, '/uploads/practice.mp4');
 });
 
-test('size boundaries accept 100 MB media and 10 MB images, reject one byte over', () => {
+test('size boundaries accept 200 MB media and 10 MB images, reject one byte over', () => {
   const { activityFileSizeError, MEDIA_LIMIT_BYTES, IMAGE_LIMIT_BYTES } = load('src/lib/activityUploadLimits.ts');
   for (const kind of ['Video', 'Audio', 'Image']) {
     const limit = kind === 'Image' ? IMAGE_LIMIT_BYTES : MEDIA_LIMIT_BYTES;
@@ -185,22 +185,22 @@ test('create and edit reject oversized media before storage uploads', async () =
   for (const editing of [false, true]) {
     const app = setup('Daily Anchor', { video: '/existing.mp4' });
     const file = video();
-    Object.defineProperty(file, 'size', { value: 100 * 1024 * 1024 + 1 });
+    Object.defineProperty(file, 'size', { value: 200 * 1024 * 1024 + 1 });
     const fields = new Map(Object.entries({ name: 'Anchor', description: 'Practice', category, thumbnail: image(), [editing ? 'video' : 'media']: file }));
     const req = { headers: new Headers(), formData: async () => ({ get: key => fields.get(key) ?? null }) };
     const res = editing ? await app.patch(req, params) : await app.post(req);
     assert.equal(res.status, 413);
-    assert.match((await res.json()).message, /video exceeds the 100 MB limit/);
+    assert.match((await res.json()).message, /video exceeds the 200 MB limit/);
     assert.equal(app.uploads.length, 0);
   }
 });
 
 test('oversized request returns a clear 413 before multipart parsing', async () => {
   const app = setup('Daily Anchor');
-  const req = { headers: new Headers({ 'content-length': String(113 * 1024 * 1024) }), formData: () => assert.fail('Must not parse oversized body') };
+  const req = { headers: new Headers({ 'content-length': String(213 * 1024 * 1024) }), formData: () => assert.fail('Must not parse oversized body') };
   for (const call of [() => app.post(req), () => app.patch(req, params)]) {
     const res = await call();
     assert.equal(res.status, 413);
-    assert.match((await res.json()).message, /100 MB/);
+    assert.match((await res.json()).message, /200 MB/);
   }
 });
