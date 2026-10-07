@@ -10,14 +10,14 @@ for (const [version, expected, unsupported] of [
   ['15.5.20', 'middlewareClientMaxBodySize', 'proxyClientMaxBodySize'],
   ['16.3.4', 'proxyClientMaxBodySize', 'middlewareClientMaxBodySize'],
 ]) {
-  test(`Next ${version} uses its supported 112 MB upload-buffer setting`, () => {
+  test(`Next ${version} uses its supported 212 MB upload-buffer setting`, () => {
     const sandbox = { exports: {}, require: name => {
       assert.equal(name, 'next/package.json');
       return { version };
     } };
     vm.runInNewContext(source, sandbox);
     const config = sandbox.exports.default;
-    assert.equal(config.experimental[expected], '112mb');
+    assert.equal(config.experimental[expected], '212mb');
     assert.equal(config.experimental[unsupported], undefined);
   });
 }

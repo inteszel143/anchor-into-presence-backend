@@ -222,7 +222,7 @@ export default function EditActivityPage() {
                   <label className={styles.label} htmlFor="activity-video-upload">
                     Video Upload
                   </label>
-                  <p id="media-size-hint">Maximum file size: 100 MB.</p>
+                  <p id="media-size-hint">Maximum file size: 200 MB.</p>
                   <input aria-describedby="media-size-hint" id="activity-video-upload"
                     type="file"
                     className={styles.fileInput}
