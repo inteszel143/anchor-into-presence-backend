@@ -1,3 +1,4 @@
+import { activityFileSizeError, REQUEST_LIMIT_BYTES, UPLOAD_LIMIT_MESSAGE } from "@/lib/activityUploadLimits";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Activity } from "@/models/Activity";
@@ -92,6 +93,9 @@ export async function PATCH(
   const existing = await Activity.findById(id);
   if (!existing) return NextResponse.json({ message: "Activity not found" }, { status: 404 });
 
+  if (Number(req.headers.get("content-length")) > REQUEST_LIMIT_BYTES) {
+    return NextResponse.json({ message: UPLOAD_LIMIT_MESSAGE }, { status: 413 });
+  }
   const formData = await req.formData();
   const name = formData.get("name")?.toString();
   const description = formData.get("description")?.toString();
@@ -110,6 +114,9 @@ export async function PATCH(
   const isDailyPause = isDailyPauseCategory(selectedCategory?.name);
   const file = formData.get("video");
   const thumbnail = formData.get("thumbnail");
+  const sizeError = activityFileSizeError(file instanceof File ? file : null, contentType === "Audio" ? "Audio" : "Video")
+    || activityFileSizeError(thumbnail instanceof File ? thumbnail : null, "Image");
+  if (sizeError) return NextResponse.json({ message: sizeError }, { status: 413 });
   if (isDailyPause && thumbnail !== null &&
       (!(thumbnail instanceof File) || thumbnail.size === 0 || !thumbnail.type.startsWith("image/"))) {
     return NextResponse.json({ message: "Upload a static / quote image for this Daily Pause" }, { status: 400 });

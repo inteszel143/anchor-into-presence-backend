@@ -19,6 +19,7 @@ function loadModule(file, mocks = {}) {
 }
 
 const modelMocks = Activity => ({
+  '@/lib/activityUploadLimits': loadModule('src/lib/activityUploadLimits.ts'),
   '@/lib/db': { connectDB: async () => {} },
   '@/models/Activity': { Activity },
   '@/models/Category': { Category: { findById: async () => ({ name: 'Daily Anchor' }) } },

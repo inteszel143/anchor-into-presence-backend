@@ -1,9 +1,11 @@
 "use client";
 
+import { activityFileSizeError } from "@/lib/activityUploadLimits";
 import { useEffect, useState } from "react";
 import { uploadActivity } from "@/lib/uploadActivity";
 import { isDailyPauseCategory } from "@/lib/activityMedia";
 import { useRouter } from "next/navigation";
+import { LoaderCircle, Plus } from "lucide-react";
 import Select from "react-select";
 import { toast } from "react-toastify";
 import styles from "../activity-form.module.css";
@@ -99,6 +101,9 @@ export default function CreateActivityPage() {
     }
 
     setUploadProgress(0);
+    const sizeError = activityFileSizeError(isDailyPause ? null : mediaFile, contentType === "Audio" ? "Audio" : "Video")
+      || activityFileSizeError(thumbnailFile, "Image");
+    if (sizeError) { toast.error(sizeError); return; }
     setLoading(true);
     try {
 
@@ -202,12 +207,21 @@ export default function CreateActivityPage() {
                     {contentType} Upload
                   </label>
 
-                  <input id="activity-video-upload"
+                  <p id="media-size-hint">Maximum file size: 100 MB.</p>
+                  <input aria-describedby="media-size-hint" id="activity-video-upload"
                     type="file"
                     className={styles.fileInput}
                     accept={contentType === "Video" ? "video/*" : "audio/*"}
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
+                      const error = activityFileSizeError(file, contentType === "Audio" ? "Audio" : "Video");
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                        setMediaFile(null);
+                        setMediaPreview(null);
+                        return;
+                      }
                       setMediaFile(file);
 
                       if(file) {
@@ -239,12 +253,21 @@ export default function CreateActivityPage() {
                 </div>}
                 <div className={styles.field}>
                   <label className={styles.label} htmlFor="activity-thumbnail-upload">{isDailyPause ? "Static / quote image" : "Thumbnail Upload"}</label>
-                  <input id="activity-thumbnail-upload"
+                  <p id="image-size-hint">Maximum image size: 10 MB.</p>
+                  <input aria-describedby="image-size-hint" id="activity-thumbnail-upload"
                     type="file"
                     className={styles.fileInput}
                     accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
+                      const error = activityFileSizeError(file, "Image");
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                        setThumbnailFile(null);
+                        setThumbnailPreview(null);
+                        return;
+                      }
                       setThumbnailFile(file);
                       if(file) {
                         setThumbnailPreview(URL.createObjectURL(file));
@@ -380,13 +403,34 @@ export default function CreateActivityPage() {
           </div>
         </div>
         <div className={styles.actions}>
-          {loading && <p role="status" aria-live="polite">
-            {uploadProgress < 100
-              ? `Uploading files… ${uploadProgress}%`
-              : "Files received. Saving media and activity…"}
-          </p>}
-          <button type="submit" className={styles.submit} disabled={loading}>
-            {loading ? "Creating activity…" : "Create Activity"}
+          {loading && (
+            <div className={styles.uploadStatus}>
+              <span className={styles.statusIcon} aria-hidden="true">
+                <LoaderCircle size={20} className={styles.spinner} />
+              </span>
+              <div className={styles.statusContent}>
+                <div role="status" aria-live="polite" aria-atomic="true">
+                  <p className={styles.statusTitle}>
+                    {uploadProgress < 100 ? "Uploading files" : "Saving your activity"}
+                  </p>
+                  <p className={styles.statusDescription}>
+                    {uploadProgress < 100
+                      ? "Please keep this page open while your files upload."
+                      : "Files received. Finishing up—please keep this page open."}
+                  </p>
+                </div>
+                {uploadProgress < 100 && (
+                  <div className={styles.progressRow}>
+                    <progress className={styles.uploadProgress} value={uploadProgress} max={100} aria-label="File upload progress" />
+                    <span className={styles.progressValue} aria-hidden="true">{uploadProgress}%</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <button type="submit" className={styles.submit} disabled={loading} aria-busy={loading}>
+            {!loading && <Plus size={18} aria-hidden="true" />}
+            {loading ? (uploadProgress < 100 ? "Uploading…" : "Saving…") : "Create activity"}
           </button>
         </div>
       </form>

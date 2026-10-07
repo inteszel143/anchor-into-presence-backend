@@ -11,7 +11,11 @@ function setup() {
     open(method, url) { assert.equal(method, 'POST'); assert.equal(url, '/api/admin/activities/create'); }
     send(form) { this.form = form; xhr = this; }
   }
-  const sandbox = { exports: {}, XMLHttpRequest: FakeXHR };
+  const limits = { exports: {} };
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/activityUploadLimits.ts', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText, limits);
+  const sandbox = { exports: {}, XMLHttpRequest: FakeXHR, require: () => limits.exports };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/uploadActivity.ts', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText, sandbox);
@@ -50,4 +54,15 @@ test('network interruption rejects without automatically retrying a possible sav
   const result = app.upload(new FormData(), () => {});
   app.xhr().onerror();
   await assert.rejects(result, /Check the activity list before retrying/);
+});
+
+test('proxy HTML 413 errors show the upload limit', async () => {
+  const app = setup();
+  const result = app.upload(new FormData(), () => {});
+  app.xhr().status = 413;
+  app.xhr().responseText = '<html>Request Entity Too Large</html>';
+  app.xhr().onload();
+  const response = await result;
+  assert.equal(response.ok, false);
+  assert.match(response.message, /100 MB/);
 });

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { activityFileSizeError, UPLOAD_LIMIT_MESSAGE } from "@/lib/activityUploadLimits";
+import { useEffect, useRef, useState } from "react";
 import { getActivityImage, isDailyPauseCategory } from "@/lib/activityMedia";
 import { useParams, useRouter } from "next/navigation";
 import Select from "react-select";
@@ -21,6 +22,7 @@ export default function EditActivityPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+  const savedPreviews = useRef<{ video: string | null; image: string | null }>({ video: null, image: null });
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export default function EditActivityPage() {
           setDescription(act.description);
           setTags(act.tags?.map((t: { name: string }) => t.name).join(", ") || "");
           setSelectedCategory(act.category || null);
+          savedPreviews.current = { video: act.video || null, image: getActivityImage(act) || act.thumbnail || null };
           setVideoPreview(act.video || null);
           setThumbnailPreview(getActivityImage(act) || act.thumbnail || null);
           setContentType(act.contentType || "");
@@ -107,6 +110,9 @@ export default function EditActivityPage() {
       return;
     }
 
+    const sizeError = activityFileSizeError(isDailyPause ? null : videoFile, contentType === "Audio" ? "Audio" : "Video")
+      || activityFileSizeError(thumbnailFile, "Image");
+    if (sizeError) { toast.error(sizeError); return; }
     setLoading(true);
     try {
       const formData = new FormData();
@@ -131,8 +137,8 @@ export default function EditActivityPage() {
         toast.success("Activity updated successfully.");
         router.push("/admin/activities");
       } else {
-        const data = await res.json();
-        toast.error(data.message || "Failed to update activity.");
+        const data = await res.json().catch(() => ({}));
+        toast.error(res.status === 413 ? UPLOAD_LIMIT_MESSAGE : data.message || "Failed to update activity.");
       }
     } catch (error) {
       console.error("Error updating activity:", error);
@@ -216,12 +222,21 @@ export default function EditActivityPage() {
                   <label className={styles.label} htmlFor="activity-video-upload">
                     Video Upload
                   </label>
-                  <input id="activity-video-upload"
+                  <p id="media-size-hint">Maximum file size: 100 MB.</p>
+                  <input aria-describedby="media-size-hint" id="activity-video-upload"
                     type="file"
                     className={styles.fileInput}
                     accept="video/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
+                      const error = activityFileSizeError(file, contentType === "Audio" ? "Audio" : "Video");
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                        setVideoFile(null);
+                        setVideoPreview(savedPreviews.current.video);
+                        return;
+                      }
                       setVideoFile(file);
                       if(file) setVideoPreview(URL.createObjectURL(file));
                     }}
@@ -238,12 +253,21 @@ export default function EditActivityPage() {
                   <label className={styles.label} htmlFor="activity-thumbnail-upload">
                     {isDailyPause ? "Static / quote image" : "Thumbnail Upload"}
                   </label>
-                  <input id="activity-thumbnail-upload"
+                  <p id="image-size-hint">Maximum image size: 10 MB.</p>
+                  <input aria-describedby="image-size-hint" id="activity-thumbnail-upload"
                     type="file"
                     className={styles.fileInput}
                     accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
+                      const error = activityFileSizeError(file, "Image");
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                        setThumbnailFile(null);
+                        setThumbnailPreview(savedPreviews.current.image);
+                        return;
+                      }
                       setThumbnailFile(file);
                       if(file) setThumbnailPreview(URL.createObjectURL(file));
                     }}

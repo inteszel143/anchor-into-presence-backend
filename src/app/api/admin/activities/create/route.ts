@@ -1,3 +1,4 @@
+import { activityFileSizeError, REQUEST_LIMIT_BYTES, UPLOAD_LIMIT_MESSAGE } from "@/lib/activityUploadLimits";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Activity } from "@/models/Activity";
@@ -19,6 +20,9 @@ export async function POST(req: NextRequest) {
     finally { timings[stage] = Date.now() - start; }
   }
   try {
+    if (Number(req.headers.get("content-length")) > REQUEST_LIMIT_BYTES) {
+      return NextResponse.json({ message: UPLOAD_LIMIT_MESSAGE }, { status: 413 });
+    }
     const [formData] = await Promise.all([
       measure("receive", () => req.formData()),
       measure("database_connect", () => connectDB()),
@@ -37,6 +41,9 @@ export async function POST(req: NextRequest) {
 
     const file = formData.get("media") as File | null;
     const thumbnail = formData.get("thumbnail");
+    const sizeError = activityFileSizeError(file instanceof File ? file : null, contentType === "Audio" ? "Audio" : "Video")
+      || activityFileSizeError(thumbnail instanceof File ? thumbnail : null, "Image");
+    if (sizeError) return NextResponse.json({ message: sizeError }, { status: 413 });
     if (!name || !description || !category || !(thumbnail instanceof File) || thumbnail.size === 0) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
