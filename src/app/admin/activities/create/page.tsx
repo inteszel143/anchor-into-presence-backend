@@ -1,5 +1,6 @@
 "use client";
 
+import { activityFileSizeError } from "@/lib/activityUploadLimits";
 import { useEffect, useState } from "react";
 import { uploadActivity } from "@/lib/uploadActivity";
 import { isDailyPauseCategory } from "@/lib/activityMedia";
@@ -99,6 +100,9 @@ export default function CreateActivityPage() {
     }
 
     setUploadProgress(0);
+    const sizeError = activityFileSizeError(isDailyPause ? null : mediaFile, contentType === "Audio" ? "Audio" : "Video")
+      || activityFileSizeError(thumbnailFile, "Image");
+    if (sizeError) { toast.error(sizeError); return; }
     setLoading(true);
     try {
 
@@ -202,12 +206,21 @@ export default function CreateActivityPage() {
                     {contentType} Upload
                   </label>
 
-                  <input id="activity-video-upload"
+                  <p id="media-size-hint">Maximum file size: 100 MB.</p>
+                  <input aria-describedby="media-size-hint" id="activity-video-upload"
                     type="file"
                     className={styles.fileInput}
                     accept={contentType === "Video" ? "video/*" : "audio/*"}
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
+                      const error = activityFileSizeError(file, contentType === "Audio" ? "Audio" : "Video");
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                        setMediaFile(null);
+                        setMediaPreview(null);
+                        return;
+                      }
                       setMediaFile(file);
 
                       if(file) {
@@ -239,12 +252,21 @@ export default function CreateActivityPage() {
                 </div>}
                 <div className={styles.field}>
                   <label className={styles.label} htmlFor="activity-thumbnail-upload">{isDailyPause ? "Static / quote image" : "Thumbnail Upload"}</label>
-                  <input id="activity-thumbnail-upload"
+                  <p id="image-size-hint">Maximum image size: 10 MB.</p>
+                  <input aria-describedby="image-size-hint" id="activity-thumbnail-upload"
                     type="file"
                     className={styles.fileInput}
                     accept="image/*"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
+                      const error = activityFileSizeError(file, "Image");
+                      if (error) {
+                        toast.error(error);
+                        e.target.value = "";
+                        setThumbnailFile(null);
+                        setThumbnailPreview(null);
+                        return;
+                      }
                       setThumbnailFile(file);
                       if(file) {
                         setThumbnailPreview(URL.createObjectURL(file));
