@@ -43,3 +43,10 @@
 }
 
 .media img { display: block; width: 100%; max-height: 640px; object-fit: contain; }
+
+.thumbnail { padding: 20px; background: #f8fafc; }
+.thumbnail img { display: block; width: 100%; max-height: 360px; object-fit: contain; border-radius: 10px; }
+.thumbnailEmpty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 12px; text-align: center; color: #687384; }
+.thumbnailEmpty p { margin: 0; font-size: 14px; }
+.thumbnailEmpty a { font-size: 13px; color: #0058c9; text-underline-offset: 3px; }
+.thumbnailEmpty a:focus-visible { outline: 3px solid #78acff; outline-offset: 4px; }
