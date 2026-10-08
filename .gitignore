@@ -22,3 +22,5 @@ __pycache__/
 # Private keys
 *.pem
 *.key
+*.p8
+.secrets/

@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Activity, Bell, ChevronRight, FileText, FolderOpen, HelpCircle, LayoutDashboard, LifeBuoy, Menu, Tag, Users, X } from "lucide-react";
 import styles from "./AdminSidebar.module.css";
-import { endingSoonCount } from "@/app/admin/offers/mock-data";
 
 const sections = [
   { label: "Overview", links: [
@@ -58,13 +57,12 @@ export default function AdminSidebar() {
               <ul>
                 {section.links.map(({ label, href, icon: Icon }) => {
                   const active = pathname === href || pathname.startsWith(`${href}/`);
-                  const showEndingSoon = href === "/admin/offers" && endingSoonCount > 0;
                   return (
                     <li key={href}>
-                      <Link href={href} className={`${styles.link} ${active ? styles.active : ""}`} aria-current={active ? "page" : undefined} aria-label={showEndingSoon ? `${label}, ${endingSoonCount} offers ending within 30 days` : undefined} onClick={() => setOpen(false)}>
+                      <Link href={href} className={`${styles.link} ${active ? styles.active : ""}`} aria-current={active ? "page" : undefined} onClick={() => setOpen(false)}>
                         <Icon size={19} strokeWidth={1.8} aria-hidden="true" />
                         <span>{label}</span>
-                        {showEndingSoon ? <span className={styles.endingSoonBadge} title={`${endingSoonCount} offers ending within 30 days (mock data)`} aria-hidden="true">{endingSoonCount}</span> : active && <ChevronRight size={15} className={styles.activeArrow} aria-hidden="true" />}
+                        {active && <ChevronRight size={15} className={styles.activeArrow} aria-hidden="true" />}
                       </Link>
                     </li>
                   );
