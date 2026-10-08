@@ -3,6 +3,12 @@
   --admin-sidebar-width: 280px;
 }
 
+/* Bootstrap enables smooth document scrolling globally. Keep admin navigation
+   and keyboard scrolling immediate, without changing public-page behavior. */
+:global(html):has(.layout) {
+  scroll-behavior: auto;
+}
+
 .layout > :global(.main-wrapper) {
   padding-top: var(--admin-header-height);
   transition: margin-left .5s ease;

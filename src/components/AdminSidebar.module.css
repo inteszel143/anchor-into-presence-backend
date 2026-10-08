@@ -25,6 +25,7 @@
 .link.active { color: #0058c9; background: #edf4ff; font-weight: 600; }
 .active::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; background: #0058c9; }
 .activeArrow { margin-left: auto; }
+.endingSoonBadge { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: auto; min-width: 22px; height: 22px; padding-inline: 6px; border-radius: 20px; background: #dc2626; color: #fff; font-size: 11px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; }
 .footer { display: flex; align-items: center; gap: 9px; padding: 20px; border-top: 1px solid #e9edf2; flex-shrink: 0; }
 .footer > span { width: 6px; height: 6px; border-radius: 50%; background: #8aab9c; flex-shrink: 0; }
 .footer p { margin: 0; color: #687384; font-size: 10px; line-height: 1.6; }
