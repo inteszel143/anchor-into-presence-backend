@@ -1,159 +1,117 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
+import styles from "./login.module.css";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  const [errors, setErrors] = useState({
-    email: false,
-    password: false,
-    passwordLength: false,
-  });
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [errors, setErrors] = useState({ email: "", password: "" });
+  const submitting = useRef(false);
+  const emailInput = useRef<HTMLInputElement>(null);
+  const passwordInput = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.dismiss();
-
-    const isEmailValid = email.trim().length > 0;
-    const isPasswordValid = password.trim().length > 0;
-    const isPasswordLengthValid = password.trim().length >= 8;
-
-    if (!isEmailValid || !isPasswordValid || !isPasswordLengthValid) {
-      setErrors({
-        email: !isEmailValid,
-        password: !isPasswordValid,
-        passwordLength: isPasswordValid && !isPasswordLengthValid,
-      });
-
-      if (!isPasswordLengthValid && isPasswordValid) {
-        toast.error("Password must be at least 8 characters long.");
-      } else {
-        toast.error("Please enter email and password.");
-      }
-
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting.current) return;
+    setError("");
+    const nextErrors = {
+      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? "" : "Enter a valid email address.",
+      password: password.trim() ? "" : "Enter your password.",
+    };
+    setErrors(nextErrors);
+    if (nextErrors.email || nextErrors.password) {
+      (nextErrors.email ? emailInput : passwordInput).current?.focus();
       return;
     }
-
+    submitting.current = true;
+    setLoading(true);
+    let navigating = false;
     try {
-      const res = await fetch("/api/admin/login", {
+      const response = await fetch("/api/admin/login", {
         method: "POST",
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password.trim(),
-        }),
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("name", data.admin.name);
-        localStorage.setItem("email", data.admin.email);
-        localStorage.setItem("image", data.admin.image);
-
-        toast.success("Login successful!");
-        router.push("/admin/dashboard");
-      } else {
-        const errorData = await res.json();
-        toast.error(errorData?.message || "Login failed. Please try again.");
+      if (!response.ok) {
+        setError(response.status === 401
+          ? "That email and password don’t match. Please try again."
+          : "We couldn’t sign you in right now. Please try again shortly.");
+        return;
       }
+      const data = await response.json();
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("name", data.admin.name ?? "");
+      localStorage.setItem("email", data.admin.email ?? "");
+      localStorage.setItem("image", data.admin.image ?? "");
+      router.push("/admin/dashboard");
+      navigating = true;
     } catch {
-      toast.error("Something went wrong. Please try again.");
+      setError("We couldn’t complete sign-in. Check your connection and try again.");
+    } finally {
+      if (!navigating) {
+        submitting.current = false;
+        setLoading(false);
+      }
     }
-  };
+  }
 
   return (
-    <>
-      <div className="credential_main_wrapper">
-        <div className="credential_form_wrapper">
-          <div className="credential_form_card">
-            <h2>Admin Login</h2>
-
-            <form onSubmit={handleLogin} noValidate>
-              <div className="form_field_wrapper">
-                <div className="form_field">
-                  <label htmlFor="email">Email</label>
-                  <div className="input_field">
-                    <input
-                      type="email"
-                      id="email"
-                      className={`form-control ${errors.email ? "is-invalid" : ""
-                        }`}
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (errors.email) {
-                          setErrors((prev) => ({ ...prev, email: false }));
-                        }
-                      }}
-                    />
-                  </div>
-                  <p className="text-danger">{errors.email ? 'Enter valid email' : ''}</p>
-                </div>
-
-                <div className="form_field n-pass">
-                  <label htmlFor="loginPassword">Password</label>
-                  <div className="input_field">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      id="loginPassword"
-                      className={`form-control ${errors.password ? "is-invalid" : ""
-                        }`}
-                      value={password}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setPassword(value);
-
-                        setErrors((prev) => ({
-                          ...prev,
-                          password: value.trim().length === 0,
-                          passwordLength: value.trim().length > 0 && value.trim().length < 8,
-                        }));
-                      }}
-                    />
-
-                    <span
-                      className="eye-icon"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      role="button"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      <i
-                        className={`fa-regular ${showPassword ? "fa-eye" : "fa-eye-slash"
-                          }`}
-                      />
-                    </span>
-
-                  </div>
-                  <p className="text-danger">
-                    {errors.password && 'Enter Password'}
-                    {errors.passwordLength && 'Password must be at least 8 characters'}
-                  </p>
-
-                </div>
-              </div>
-
-              <div className="form-btn-blk">
-                <button
-                  type="submit"
-                  className="form-btn w-100 fw-medium text-white text-capitalize"
-                >
-                  Login
-                </button>
-              </div>
-            </form>
+    <main className={styles.page}>
+      <div className={styles.shell}>
+        <aside className={styles.brandPanel} aria-label="Anchor Into Presence">
+          <div className={styles.brand}>
+            <Image src="/assets/images/anchor-into-presence-logo.png" alt="" width={56} height={56} priority />
+            <div><strong>Anchor Into Presence</strong><span>Admin workspace</span></div>
           </div>
-        </div>
+          <div className={styles.brandMessage}>
+            <h2>Welcome back!</h2>
+            <p>Enter your email and password<br />to continue to your workspace.</p>
+          </div>
+          <p className={styles.brandFooter}>Small moments. Lasting connection.</p>
+        </aside>
+
+        <section className={styles.formPanel} aria-labelledby="login-title">
+          <div className={styles.formContent}>
+            <h1 id="login-title">Sign in</h1>
+            <p className={styles.intro}>TO YOUR ADMIN WORKSPACE</p>
+            <form onSubmit={handleLogin} noValidate aria-busy={loading}>
+              <div className={styles.field}>
+                <label htmlFor="email">Email address</label>
+                <div className={`${styles.inputWrap} ${errors.email ? styles.invalid : ""}`}>
+                  <Mail size={19} aria-hidden="true" />
+                  <input ref={emailInput} id="email" name="email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="you@example.com" value={email} disabled={loading} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "email-error" : undefined} onChange={event => { setEmail(event.target.value); setErrors(previous => ({ ...previous, email: "" })); setError(""); }} />
+                </div>
+                {errors.email && <p id="email-error" className={styles.fieldError}>{errors.email}</p>}
+              </div>
+              <div className={styles.field}>
+                <label htmlFor="loginPassword">Password</label>
+                <div className={`${styles.inputWrap} ${errors.password ? styles.invalid : ""}`}>
+                  <LockKeyhole size={19} aria-hidden="true" />
+                  <input ref={passwordInput} id="loginPassword" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Enter your password" value={password} disabled={loading} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? "password-error" : undefined} onChange={event => { setPassword(event.target.value); setErrors(previous => ({ ...previous, password: "" })); setError(""); }} />
+                  <button className={styles.eyeButton} type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}</button>
+                </div>
+                {errors.password && <p id="password-error" className={styles.fieldError}>{errors.password}</p>}
+              </div>
+              {error && <p className={styles.error} role="alert">{error}</p>}
+              <button className={styles.submit} type="submit" disabled={loading}>
+                <span>{loading ? "Signing in…" : "Sign in"}</span>
+                {loading ? <LoaderCircle size={19} className={styles.spinner} aria-hidden="true" /> : <ArrowRight size={19} aria-hidden="true" />}
+              </button>
+              <p className={styles.loadingStatus} role="status">{loading ? "Signing in. Please wait." : ""}</p>
+            </form>
+            <p className={styles.accessNote}>For authorized team members only.<br />Need access? Contact your workspace administrator.</p>
+          </div>
+          <p className={styles.formFooter}>Anchor Into Presence · Admin workspace</p>
+        </section>
       </div>
-    </>
+    </main>
   );
 }
