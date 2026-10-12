@@ -13,4 +13,4 @@ const UserActivityLogsSchema = new mongoose.Schema(
 );
 
 export const UserActivityLogs =
-  mongoose.models.UserActivityLogs || mongoose.model("user_activity_logs", UserActivityLogsSchema);
+  mongoose.models.user_activity_logs || mongoose.model("user_activity_logs", UserActivityLogsSchema);

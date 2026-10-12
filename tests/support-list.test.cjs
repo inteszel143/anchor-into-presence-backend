@@ -51,3 +51,25 @@ test('support list returns a JSON error if the database fails', async () => {
   assert.equal(res.status, 500);
   assert.match((await res.json()).message, /try again/);
 });
+
+test('notification count includes only unresolved tickets and is not cached', async () => {
+  let filter;
+  const { GET } = load('src/app/api/admin/support/unresolved-count/route.ts', {
+    'next/server': { NextResponse }, '@/lib/db': { connectDB: async () => {} },
+    '@/models/Support': { Support: { countDocuments: async query => { filter = query; return 8; } } },
+  });
+  const response = await GET();
+  assert.equal(JSON.stringify(filter), JSON.stringify({ status: 0 }));
+  assert.deepEqual(await response.json(), { count: 8 });
+  assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
+});
+
+test('notification count reports database failures rather than zero tickets', async () => {
+  const { GET } = load('src/app/api/admin/support/unresolved-count/route.ts', {
+    'next/server': { NextResponse }, '@/lib/db': { connectDB: async () => { throw new Error('offline'); } },
+    '@/models/Support': { Support: {} },
+  });
+  const response = await GET();
+  assert.equal(response.status, 500);
+  assert.equal((await response.json()).count, undefined);
+});

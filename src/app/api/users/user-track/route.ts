@@ -203,10 +203,25 @@ export async function GET(req: NextRequest) {
 
     // ----------------------------------------------------------------------------user login streak end -----------------------------------------------------------------//
 
+    // Completion history spans days so device/server timezone differences cannot
+    // hide a session near midnight. The app displays these timestamps locally.
+    const completedActivities = await UserActivityLogs.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId as string), isCompleted: true } },
+      { $sort: { createdAt: -1, _id: -1 } },
+      { $limit: 20 },
+      { $lookup: { from: "activities", localField: "activityId", foreignField: "_id", as: "activity" } },
+      { $unwind: { path: "$activity", preserveNullAndEmptyArrays: true } },
+      { $project: {
+        _id: 1, activityId: 1, completedAt: "$createdAt", totalVideoTime: 1,
+        name: { $ifNull: ["$activity.name", "Meditation"] },
+      } },
+    ]);
+
     // 4. Final result
     return NextResponse.json({
       message: "User activity summary for today",
       data: {
+        completedActivities,
         loggedActivities: {
           totalTime,
           thumbnails,
@@ -219,7 +234,7 @@ export async function GET(req: NextRequest) {
         },
       },
       status: true,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiErrorResponse(error, { message: "Internal server error" });
   }

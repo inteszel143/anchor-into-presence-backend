@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import SupportNotification from "./SupportNotification";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, LogOut, User, KeyRound } from "lucide-react";
@@ -75,7 +76,7 @@ const AdminHeader = () => {
               <div className="header-menu">
                 <ul className="header-menu-list">
                   <li className="nav-item">
-                    {/* notification bell */}
+                    <SupportNotification />
                   </li>
 
                   <li className="nav-item">

@@ -73,6 +73,7 @@ export default function AdminSupportListPage() {
     try {
       const response = await fetch(`/api/admin/support/${ticket._id}`, { method: "PATCH" });
       if (!response.ok) throw new Error("Couldn’t resolve this ticket. Please try again.");
+      window.dispatchEvent(new Event("support-updated"));
       toast.success("Support ticket resolved");
       setTickets(previous => previous.map(item => item._id === ticket._id ? { ...item, status: 1 } : item));
     } catch (error) {
@@ -106,7 +107,7 @@ export default function AdminSupportListPage() {
             <table className={styles.table}>
               <thead><tr><th scope="col">Ticket</th><th scope="col">Submitted by</th><th scope="col">Message</th><th scope="col">Created</th><th scope="col">Status</th><th scope="col" className={styles.actionsHeading}>Action</th></tr></thead>
               <tbody>{tickets.map(ticket => <tr key={ticket._id}>
-                <td><div className={styles.identity}><span className={styles.ticketIcon}><LifeBuoy size={20} aria-hidden="true" /></span><div><span className={styles.name}>{ticket.title || "Untitled ticket"}</span><span className={styles.ticketId} title={ticket._id}>#{ticket._id.slice(-6)}</span></div></div></td>
+                <td><div className={styles.identity}><span className={styles.ticketIcon}><LifeBuoy size={20} aria-hidden="true" /></span><div><span className={styles.name}>{ticket.title || "Untitled ticket"}</span></div></div></td>
                 <td><span className={styles.requester}>{ticket.userName?.trim() || "Unknown user"}</span></td>
                 <td><p className={styles.description}>{ticket.description?.trim() || "No details provided."}</p></td>
                 <td className={styles.date}>{createdLabel(ticket.createdAt)}</td>
