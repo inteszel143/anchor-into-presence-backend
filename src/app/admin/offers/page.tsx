@@ -5,6 +5,8 @@ import { CalendarClock, CheckCircle2, Clock3, RefreshCw, Search, Tag } from "luc
 import type { OfferHistory, OfferTransaction, StoreEnvironment } from "@/lib/appStoreOffers";
 import shared from "../users/users.module.css";
 import styles from "./offers.module.css";
+import { OfferMetricSkeleton, OfferNoticeSkeleton, OfferTableSkeleton } from "./OfferSkeleton";
+import GoogleOffersReport from "./GoogleOffersReport";
 
 function displayDate(value: number | null) {
   return value === null ? "Unavailable" : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(value);
@@ -17,6 +19,17 @@ function periodStatus(row: OfferTransaction, now: number) {
 }
 
 export default function PromotionalOffersPage() {
+  const [platform, setPlatform] = useState<"apple" | "google">("apple");
+  return <>
+    <div className={styles.platforms} role="group" aria-label="Store platform">
+      <button type="button" aria-pressed={platform === "apple"} onClick={() => setPlatform("apple")}>Apple App Store</button>
+      <button type="button" aria-pressed={platform === "google"} onClick={() => setPlatform("google")}>Google Play</button>
+    </div>
+    {platform === "apple" ? <AppleOffersReport /> : <GoogleOffersReport />}
+  </>;
+}
+
+function AppleOffersReport() {
   const [environment, setEnvironment] = useState<StoreEnvironment>("production");
   const [data, setData] = useState<OfferHistory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,21 +86,21 @@ export default function PromotionalOffersPage() {
         <div><p className={shared.eyebrow}>Subscriptions</p><h1>Promotional offers</h1><p className={shared.subtitle}>Offer transactions reported by Apple for your app.</p></div>
         <div className={styles.controls}>
           <label htmlFor="store-environment">App Store environment<select id="store-environment" value={environment} onChange={event => { setEnvironment(event.target.value as StoreEnvironment); clearFilters(); }}><option value="production">Production</option><option value="sandbox">Sandbox</option></select></label>
-          <button type="button" className={styles.reviewButton} disabled={loading} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />{loading ? "Loading…" : "Refresh"}</button>
+          <button type="button" className={styles.reviewButton} disabled={loading} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
         </div>
       </div>
-      <div className={styles.notice}><Tag size={19} aria-hidden="true" /><p>{current ? `Connected to Apple · ${environment === "production" ? "Production" : "Sandbox"} · ${displayDate(current.startDate)} – ${displayDate(current.endDate)} (UTC). ${current.notificationCount} notifications received.` : loading ? "Loading offer history from Apple…" : "App Store history is unavailable."} This report covers available notifications, not all historical redemptions. Renewals can produce multiple transactions for one offer.</p></div>
+      {loading ? <OfferNoticeSkeleton /> : <div className={styles.notice}><Tag size={19} aria-hidden="true" /><p>{current ? `Connected to Apple · ${environment === "production" ? "Production" : "Sandbox"} · ${displayDate(current.startDate)} – ${displayDate(current.endDate)} (UTC). ${current.notificationCount} notifications received.` : "App Store history is unavailable."} This report covers available notifications, not all historical redemptions. Renewals can produce multiple transactions for one offer.</p></div>}
       <div className={styles.metrics}>
         {[
           { label: "Offer transactions", value: transactions.length, detail: "Unique transactions in this history", icon: Tag },
           { label: "Within reported period", value: active, detail: "Based on the reported period end", icon: CheckCircle2 },
           { label: "Period ends within 30 days", value: ending, detail: "Based on the latest loaded data", icon: CalendarClock },
           { label: "Reported period ended", value: ended, detail: "Excludes revoked transactions", icon: Clock3 },
-        ].map(({ label, value, detail, icon: Icon }) => <div className={styles.metric} key={label}><div><span>{label}</span><Icon size={19} aria-hidden="true" /></div><strong>{current ? value : "—"}</strong><p>{detail}</p></div>)}
+        ].map(({ label, value, detail, icon: Icon }) => <div className={styles.metric} key={label}><div><span>{label}</span><Icon size={19} aria-hidden="true" /></div><strong>{loading ? <OfferMetricSkeleton /> : current ? value : "—"}</strong><p>{detail}</p></div>)}
       </div>
       <section className={shared.card} aria-label="Offer transactions" aria-busy={loading}>
         <div className={styles.sectionHeading}><div><h2>Offer transactions</h2><p>Promotional offers and redeemed offer codes.</p></div><button type="button" className={styles.reviewButton} disabled={!current} onClick={() => { clearFilters(); setStatus("Ending soon"); setSort("soonest"); }}>View ending soon <span>{current ? ending : "—"}</span></button></div>
-        {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load offer history</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div> : loading ? <div className={shared.empty} role="status"><p>Loading App Store transactions…</p></div> : <>
+        {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load offer history</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div> : loading ? <OfferTableSkeleton /> : <>
           <div className={`${shared.filters} ${styles.filters}`}>
             <label className={shared.searchLabel} htmlFor="offer-search">Search transactions<span className={shared.searchField}><Search size={18} aria-hidden="true" /><input id="offer-search" type="search" placeholder="Transaction, product, or offer ID" value={search} onChange={event => setSearch(event.target.value)} /></span></label>
             <label htmlFor="offer-code">Offer identifier<select id="offer-code" value={code} onChange={event => setCode(event.target.value)}><option value="">All offers</option>{[...new Set(transactions.map(row => row.code))].sort().map(value => <option key={value}>{value}</option>)}</select></label>

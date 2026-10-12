@@ -55,14 +55,20 @@ export async function POST(req: NextRequest) {
 
   const { userId } = await getAuthUser(req);
 
-  const { productId, purchaseId, activityId, amount, purchaseDate, planType, currencySymbol } =
+  const { productId, purchaseId, activityId, amount, purchaseDate, planType, currencySymbol, platform, purchaseToken } =
     await req.json();
 
-  if (!productId || !purchaseId || !amount || !purchaseDate || !planType || !currencySymbol) {
+  if (!productId || !purchaseId || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || !purchaseDate || !planType || !currencySymbol) {
     return NextResponse.json(
       { message: "All fields are required", status: false },
       { status: 400 }
     );
+  }
+
+  if ((platform !== undefined && platform !== "android" && platform !== "ios") ||
+      (purchaseToken !== undefined && (platform !== "android" || typeof purchaseToken !== "string" ||
+        !purchaseToken.trim() || purchaseToken.length > 8192 || /\s/.test(purchaseToken)))) {
+    return NextResponse.json({ message: "Invalid purchase reporting details", status: false }, { status: 400 });
   }
 
   try {
@@ -74,6 +80,8 @@ export async function POST(req: NextRequest) {
       purchaseDate,
       planType,
       currencySymbol,
+      ...(platform ? { platform } : {}),
+      ...(purchaseToken ? { purchaseToken } : {}),
     });
 
     return NextResponse.json(

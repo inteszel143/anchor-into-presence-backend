@@ -1,4 +1,8 @@
 .preview { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid #d8e4ef; border-radius: 30px; color: #526785; background: #f1f6fb; font-size: 12px; white-space: nowrap; }
+.platforms { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 auto 24px; max-width: 1440px; padding-inline: 32px; }
+.platforms button { min-height: 44px; padding: 10px 16px; border: 1px solid #dce2e9; border-radius: 9px; background: white; color: #526785; cursor: pointer; font: inherit; }
+.platforms button[aria-pressed="true"] { background: #e9f3f4; border-color: #9ebfc2; color: #284f54; font-weight: 600; }
+.platforms button:focus-visible { outline: 2px solid #356a70; outline-offset: 3px; }
 .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .controls label { display: grid; gap: 6px; color: #596b7e; font-size: 12px; }
 .controls select { min-height: 44px; border: 1px solid #dce2e9; border-radius: 9px; background: white; padding: 10px 12px; color: #283c50; }
@@ -27,5 +31,23 @@
 .remaining { white-space: nowrap; color: #596575; }
 .footnote, .help { font-size: 12px; color: #687384; line-height: 1.7; }
 .help { margin: 18px 0 0; }
+.skeleton { display: block; border-radius: 5px; background: #e7edf3; animation: skeletonPulse 1.8s ease-in-out infinite; }
+.skeletonNotice { width: 100%; display: grid; gap: 10px; padding-block: 3px; }
+.skeletonLine { width: 85%; height: 14px; }
+.skeletonLineShort { width: 60%; height: 14px; }
+.skeletonValue { width: 64px; height: 38px; border-radius: 7px; }
+.skeletonFilters > div { flex: 1; min-width: 130px; display: grid; gap: 8px; }
+.skeletonFilters > div:first-child { flex: 2; min-width: 240px; }
+.skeletonLabel { width: 90px; height: 14px; }
+.skeletonInput { width: 100%; height: 44px; border-radius: 9px; }
+.skeletonTable { min-width: 780px; table-layout: fixed; }
+.skeletonSecondary { width: 60%; height: 12px; margin-top: 8px; }
+.skeletonBadge { width: 85%; height: 26px; border-radius: 30px; }
+.skeletonFooter { width: 190px; max-width: 100%; height: 14px; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@keyframes skeletonPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+@media (max-width: 768px) { .skeletonFilters > div, .skeletonFilters > div:first-child { min-width: 0; width: 100%; } }
 @media (max-width: 1100px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 576px) { .metrics { gap: 10px; } .metric { padding: 16px; } .metric > div { font-size: 12px; } .metric svg { display: none; } .sectionHeading { padding: 18px; } }
+@media (max-width: 576px) { .platforms { padding-inline: 16px; } }
