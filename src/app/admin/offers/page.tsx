@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
+import OfferCustomerCell from "./OfferCustomerCell";
 import { CalendarClock, CheckCircle2, Clock3, RefreshCw, Search, Tag } from "lucide-react";
 import type { OfferHistory, OfferTransaction, StoreEnvironment } from "@/lib/appStoreOffers";
 import shared from "../users/users.module.css";
@@ -22,8 +24,8 @@ export default function PromotionalOffersPage() {
   const [platform, setPlatform] = useState<"apple" | "google">("apple");
   return <>
     <div className={styles.platforms} role="group" aria-label="Store platform">
-      <button type="button" aria-pressed={platform === "apple"} onClick={() => setPlatform("apple")}>Apple App Store</button>
-      <button type="button" aria-pressed={platform === "google"} onClick={() => setPlatform("google")}>Google Play</button>
+      <button type="button" aria-pressed={platform === "apple"} onClick={() => setPlatform("apple")}><Image src="/assets/images/apple-icon.svg" alt="" width={18} height={20} aria-hidden="true" />Apple App Store</button>
+      <button type="button" aria-pressed={platform === "google"} onClick={() => setPlatform("google")}><Image src="/assets/images/google-icon.svg" alt="" width={18} height={20} aria-hidden="true" />Google Play</button>
     </div>
     {platform === "apple" ? <AppleOffersReport /> : <GoogleOffersReport />}
   </>;
@@ -68,7 +70,7 @@ function AppleOffersReport() {
   const query = search.trim().toLowerCase();
   const filtered = Boolean(search || code || status);
   const rows = transactions.filter(row =>
-    `${row.id} ${row.originalTransactionId} ${row.productId} ${row.code}`.toLowerCase().includes(query) &&
+    `${row.customer?.name ?? ""} ${row.customer?.email ?? ""} ${row.id} ${row.originalTransactionId} ${row.productId} ${row.code}`.toLowerCase().includes(query) &&
     (!code || row.code === code) && (!status || periodStatus(row, now) === status)
   ).sort((a, b) => {
     if (a.expiresAt === null) return b.expiresAt === null ? 0 : 1;
@@ -100,9 +102,9 @@ function AppleOffersReport() {
       </div>
       <section className={shared.card} aria-label="Offer transactions" aria-busy={loading}>
         <div className={styles.sectionHeading}><div><h2>Offer transactions</h2><p>Promotional offers and redeemed offer codes.</p></div><button type="button" className={styles.reviewButton} disabled={!current} onClick={() => { clearFilters(); setStatus("Ending soon"); setSort("soonest"); }}>View ending soon <span>{current ? ending : "—"}</span></button></div>
-        {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load offer history</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div> : loading ? <OfferTableSkeleton /> : <>
+        {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load offer history</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div> : loading ? <OfferTableSkeleton columns={9} /> : <>
           <div className={`${shared.filters} ${styles.filters}`}>
-            <label className={shared.searchLabel} htmlFor="offer-search">Search transactions<span className={shared.searchField}><Search size={18} aria-hidden="true" /><input id="offer-search" type="search" placeholder="Transaction, product, or offer ID" value={search} onChange={event => setSearch(event.target.value)} /></span></label>
+            <label className={shared.searchLabel} htmlFor="offer-search">Search transactions<span className={shared.searchField}><Search size={18} aria-hidden="true" /><input id="offer-search" type="search" placeholder="Name, email, transaction, or offer ID" value={search} onChange={event => setSearch(event.target.value)} /></span></label>
             <label htmlFor="offer-code">Offer identifier<select id="offer-code" value={code} onChange={event => setCode(event.target.value)}><option value="">All offers</option>{[...new Set(transactions.map(row => row.code))].sort().map(value => <option key={value}>{value}</option>)}</select></label>
             <label htmlFor="offer-status">Reported period<select id="offer-status" value={status} onChange={event => setStatus(event.target.value)}><option value="">All statuses</option>{["In period", "Ending soon", "Ended", "Revoked", "Unknown"].map(value => <option key={value}>{value}</option>)}</select></label>
             <label htmlFor="offer-sort">Period end order<select id="offer-sort" value={sort} onChange={event => setSort(event.target.value)}><option value="soonest">Soonest first</option><option value="latest">Latest first</option></select></label>
@@ -110,15 +112,18 @@ function AppleOffersReport() {
           </div>
           {rows.length ? <div className={shared.tableScroll} role="region" aria-label="Offer transaction table" tabIndex={0}>
             <table className={shared.table}>
-              <thead><tr>{["Transaction", "Platform", "Offer", "Purchased on (UTC)", "Period ends (UTC)", "Reported period"].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
+              <thead><tr>{["Customer (app record)", "Transaction", "Platform", "Offer", "Purchased on (UTC)", "Period ends (UTC)", "Discount ends", "Auto-renew at notification", "Reported period"].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
               <tbody>{rows.map(row => {
                 const state = periodStatus(row, now);
                 return <tr key={`${row.platform}-${row.id}`}>
+                  <OfferCustomerCell customer={row.customer} />
                   <td><span className={shared.name}>{row.id}</span><span className={shared.email}>Original: {row.originalTransactionId}</span></td>
                   <td><span className={`${styles.code} ${styles.ambassador}`}>{row.platform}</span></td>
                   <td><span className={`${styles.code} ${styles.vip}`}>{row.code}</span><span className={shared.email}>{row.kind} · {row.productId}</span></td>
                   <td className={shared.date}>{displayDate(row.purchasedAt)}</td>
                   <td className={shared.date}>{displayDate(row.expiresAt)}</td>
+                  <td>Unavailable<span className={shared.email}>Confirm offer duration in App Store Connect</span></td>
+                  <td>{row.autoRenewEnabled === null ? "Unavailable" : row.autoRenewEnabled ? "On" : "Off"}<span className={shared.email}>{row.renewalReportedAt ? `Reported ${displayDate(row.renewalReportedAt)}` : "No renewal date reported"}</span></td>
                   <td><span className={`${shared.badge} ${state === "In period" ? shared.active : state === "Ending soon" ? styles.ending : styles.expired}`}><span aria-hidden="true" />{state}</span></td>
                 </tr>;
               })}</tbody>
@@ -127,7 +132,7 @@ function AppleOffersReport() {
           <div className={shared.footer}><span className={shared.results} role="status">Showing {rows.length} of {transactions.length} offer transactions</span><span className={styles.footnote}>Period end is not the full promotion’s expiration date.</span></div>
         </>}
       </section>
-      <p className={styles.help}>Apple does not include customer names or emails in this response. Notification records describe the transaction when reported and may not reflect current subscription access.</p>
+      <p className={styles.help}>Customer matches come from app purchase records and are not verified ownership. Apple renewal settings are historical snapshots and may have changed. The renewal price and discount end date are not confirmed by this report. A new code requires an eligible offer in App Store Connect; reuse is not automatic.</p>
     </div>
   );
 }

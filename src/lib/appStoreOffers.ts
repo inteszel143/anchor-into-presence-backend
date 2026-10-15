@@ -1,3 +1,4 @@
+import type { OfferCustomer } from "./offerCustomers";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import jwt from "jsonwebtoken";
@@ -13,6 +14,9 @@ export type OfferTransaction = {
   purchasedAt: number;
   expiresAt: number | null;
   revokedAt: number | null;
+  customer?: OfferCustomer;
+  autoRenewEnabled: boolean | null;
+  renewalReportedAt: number | null;
 };
 export type OfferHistory = {
   environment: StoreEnvironment;
@@ -87,6 +91,8 @@ export async function getAppStoreOffers(environment: StoreEnvironment): Promise<
       const signedDate = typeof transaction.signedDate === "number" ? transaction.signedDate : 0;
       const previous = transactions.get(transaction.transactionId);
       if (previous && previous.signedDate > signedDate) continue;
+      const renewal = notification.data.signedRenewalInfo ? decode(notification.data.signedRenewalInfo) : null;
+      const matchingRenewal = renewal?.originalTransactionId === transaction.originalTransactionId && renewal?.environment?.toLowerCase() === environment;
       transactions.set(transaction.transactionId, { signedDate, row: {
         id: transaction.transactionId,
         platform: "Apple",
@@ -96,6 +102,8 @@ export async function getAppStoreOffers(environment: StoreEnvironment): Promise<
         productId: transaction.productId ?? "Product unavailable",
         purchasedAt: transaction.purchaseDate,
         expiresAt: typeof transaction.expiresDate === "number" ? transaction.expiresDate : null,
+        autoRenewEnabled: matchingRenewal && [0, 1].includes(renewal?.autoRenewStatus) ? renewal?.autoRenewStatus === 1 : null,
+        renewalReportedAt: matchingRenewal && typeof renewal?.signedDate === "number" ? renewal.signedDate : null,
         revokedAt: typeof transaction.revocationDate === "number" ? transaction.revocationDate : null,
       } });
     }

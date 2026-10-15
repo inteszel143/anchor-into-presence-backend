@@ -1,6 +1,6 @@
 .preview { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid #d8e4ef; border-radius: 30px; color: #526785; background: #f1f6fb; font-size: 12px; white-space: nowrap; }
 .platforms { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 auto 24px; max-width: 1440px; padding-inline: 32px; }
-.platforms button { min-height: 44px; padding: 10px 16px; border: 1px solid #dce2e9; border-radius: 9px; background: white; color: #526785; cursor: pointer; font: inherit; }
+.platforms button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid #dce2e9; border-radius: 9px; background: white; color: #526785; cursor: pointer; font: inherit; }
 .platforms button[aria-pressed="true"] { background: #e9f3f4; border-color: #9ebfc2; color: #284f54; font-weight: 600; }
 .platforms button:focus-visible { outline: 2px solid #356a70; outline-offset: 3px; }
 .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }

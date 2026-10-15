@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
+import { findOfferCustomers } from "./offerCustomers";
 import { UserPurchase } from "@/models/UserPurchase";
 import type { GooglePlayEnvironment, GooglePlayOffer, GooglePlayOfferReport } from "./googlePlayOfferTypes";
 
@@ -16,6 +17,9 @@ type PlayPurchase = {
   lineItems?: Array<{
     productId?: string;
     expiryTime?: string;
+    autoRenewingPlan?: { autoRenewEnabled?: boolean; recurringPrice?: { currencyCode?: string; units?: string; nanos?: number } };
+    prepaidPlan?: object;
+    offerPhase?: { freeTrial?: object; introductoryPrice?: object; basePrice?: object; prorationPeriod?: object };
     latestSuccessfulOrderId?: string;
     offerDetails?: { basePlanId?: string; offerId?: string };
     signupPromotion?: { oneTimeCode?: object; vanityCode?: { promotionCode?: string } };
@@ -30,7 +34,7 @@ function timestamp(value: string | undefined): number | null {
 }
 
 // A read-only snapshot, not a renewal ledger or an entitlement decision.
-// Never return purchase tokens, customer identities, or Google's raw error bodies.
+// Never return purchase tokens or Google's raw error bodies.
 export function mapGooglePlayOffers(purchase: PlayPurchase, token: string, environment: GooglePlayEnvironment): GooglePlayOffer[] {
   if (purchase.kind !== "androidpublisher#subscriptionPurchaseV2" ||
       !Array.isArray(purchase.lineItems) || typeof purchase.subscriptionState !== "string") {
@@ -47,6 +51,8 @@ export function mapGooglePlayOffers(purchase: PlayPurchase, token: string, envir
     if (typeof item.productId !== "string" || !item.productId) {
       throw new GooglePlayError("Google returned an incomplete offer purchase.");
     }
+    const price = item.autoRenewingPlan?.recurringPrice;
+    const amount = price ? Number(price.units ?? 0) + (price.nanos ?? 0) / 1e9 : NaN;
     return [{
       id: createHash("sha256").update(`${token}:${index}`).digest("hex"),
       orderId: item.latestSuccessfulOrderId,
@@ -58,6 +64,10 @@ export function mapGooglePlayOffers(purchase: PlayPurchase, token: string, envir
       startedAt: timestamp(purchase.startTime),
       expiresAt: timestamp(item.expiryTime),
       state: purchase.subscriptionState!,
+      autoRenewEnabled: item.autoRenewingPlan ? item.autoRenewingPlan.autoRenewEnabled ?? false : item.prepaidPlan ? false : null,
+      regularPrice: price?.currencyCode && /^[A-Z]{3}$/.test(price.currencyCode) && Number.isFinite(amount)
+        ? new Intl.NumberFormat("en-US", { style: "currency", currency: price.currencyCode, currencyDisplay: "code", maximumFractionDigits: 9 }).format(amount).replace(/\s/g, " ") : null,
+      pricingPhase: item.offerPhase?.freeTrial ? "Free trial" : item.offerPhase?.introductoryPrice ? "Discounted" : item.offerPhase?.basePrice ? "Regular price" : item.offerPhase?.prorationPeriod ? "Prorated" : "Unavailable",
     }];
   });
 }
@@ -106,6 +116,7 @@ export async function getGooglePlayOffers(environment: GooglePlayEnvironment): P
     }).maxTimeMS(10000),
   ]);
   if (purchases.length > 500) throw new GooglePlayError("More than 500 saved Google purchases need checking. A background sync is needed to report these without partial totals.");
+  const customers = await findOfferCustomers(purchases.map(p => p._id), "android");
   let checkedPurchases = 0;
   let unavailablePurchases = 0;
   const offers: GooglePlayOffer[] = [];
@@ -133,7 +144,7 @@ export async function getGooglePlayOffers(environment: GooglePlayEnvironment): P
         throw new GooglePlayError(`Google could not check purchases (HTTP ${response.status}). No partial report is shown.`);
       }
       const purchase: PlayPurchase = await response.json();
-      offers.push(...mapGooglePlayOffers(purchase, token, environment));
+      offers.push(...mapGooglePlayOffers(purchase, token, environment).map(offer => ({ ...offer, customer: customers.get(token) })));
       checkedPurchases++;
     }
   }));

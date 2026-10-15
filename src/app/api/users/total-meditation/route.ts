@@ -11,9 +11,13 @@ export async function GET(req: NextRequest) {
   const { userId } = await getAuthUser(req);
 
   try {
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 }); // Monday
-    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 }); // Sunday
-    const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const weekStartsOn = req.nextUrl.searchParams.get("weekStartsOn") === "0" ? 0 : 1;
+    const weekStart = startOfWeek(new Date(), { weekStartsOn });
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn });
+    const isoDayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const dayLabels = weekStartsOn === 0
+      ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+      : isoDayLabels;
 
     const weeklyData = await UserActivityLogs.aggregate([
       {
@@ -21,7 +25,7 @@ export async function GET(req: NextRequest) {
           userId: new mongoose.Types.ObjectId(userId as string),
           createdAt: {
             $gte: weekStart,
-            $lte: endOfWeek(weekStart, { weekStartsOn: 1 }),
+            $lte: weekEnd,
           },
         },
       },
@@ -67,8 +71,8 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Fill in missing days with 0 and map labels
-    const week = dayLabels.map((label, i) => {
-      const match = weeklyData.find((item) => item._id === i + 1);
+    const week = dayLabels.map((label) => {
+      const match = weeklyData.find((item) => item._id === isoDayLabels.indexOf(label) + 1);
       return {
         day: label,
         value: match ? Math.round(match.totalWatched) : 0,

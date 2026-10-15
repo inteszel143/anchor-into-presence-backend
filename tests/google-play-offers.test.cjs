@@ -31,6 +31,7 @@ function service({ fetchPurchase, tokens = ['private-token'], untracked = 0, aut
   const requests = [];
   let pipeline;
   const api = load('src/lib/googlePlayOffers.ts', {
+    './offerCustomers': { findOfferCustomers: async () => new Map() },
     'node:crypto': crypto, 'node:path': path,
     'node:fs/promises': { readFile: async () => JSON.stringify({ type: 'service_account', client_email: 'service@example.test', private_key: 'private-key' }) },
     jsonwebtoken: { sign: () => 'private-assertion' },
@@ -160,4 +161,17 @@ test('purchase endpoint accepts free Android offers and legacy clients, rejects 
     assert.equal((await post({ ...body, ...extra })).status, 400);
   }
   assert.equal(writes.length, 2);
+});
+
+test('renewal settings and regular price are separate from current discount phase', () => {
+  const { mapGooglePlayOffers } = service();
+  const item = purchase().lineItems[0];
+  const row = extra => mapGooglePlayOffers(purchase({ lineItems: [{ ...item, ...extra }] }), 't', 'production')[0];
+  assert.equal(row({}).autoRenewEnabled, null);
+  assert.equal(row({ prepaidPlan: {} }).autoRenewEnabled, false);
+  const discounted = row({ autoRenewingPlan: { autoRenewEnabled: true, recurringPrice: { currencyCode: 'USD', units: '59', nanos: 990000000 } }, offerPhase: { introductoryPrice: {} } });
+  assert.equal(discounted.autoRenewEnabled, true);
+  assert.equal(discounted.regularPrice, 'USD 59.99');
+  assert.equal(discounted.pricingPhase, 'Discounted');
+  assert.equal(row({ autoRenewingPlan: { autoRenewEnabled: false }, offerPhase: { basePrice: {} } }).pricingPhase, 'Regular price');
 });

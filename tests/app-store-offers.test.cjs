@@ -81,6 +81,7 @@ test('admin route rejects unauthenticated, non-admin, and invalid environment re
   let calls = 0;
   const { GET } = load('src/app/api/admin/offers/route.ts', {
     'next/server': { NextResponse }, jsonwebtoken: jwt,
+    '@/lib/offerCustomers': { findOfferCustomers: async () => new Map() },
     '@/lib/appStoreOffers': { AppStoreError: Error, getAppStoreOffers: async environment => { calls++; return { environment, transactions: [] }; } },
   });
   const request = (role, query = '') => new NextRequest(`https://example.test/api/admin/offers${query}`, {
@@ -95,4 +96,19 @@ test('admin route rejects unauthenticated, non-admin, and invalid environment re
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal((await response.json()).environment, 'sandbox');
   assert.equal(calls, 1);
+});
+
+test('renewal snapshots require matching subscription and environment', async () => {
+  async function report(renewal) {
+    const item = notification();
+    const outer = jwt.decode(item.signedPayload);
+    outer.data.signedRenewalInfo = signed(renewal);
+    item.signedPayload = signed(outer);
+    return (await service(async () => Response.json({ notificationHistory: [item], hasMore: false })).getAppStoreOffers('production')).transactions[0];
+  }
+  const renewal = { originalTransactionId: '100', environment: 'Production', autoRenewStatus: 1, signedDate: 400 };
+  assert.equal((await report(renewal)).autoRenewEnabled, true);
+  assert.equal((await report({ ...renewal, autoRenewStatus: 0 })).autoRenewEnabled, false);
+  assert.equal((await report({ ...renewal, originalTransactionId: 'other' })).autoRenewEnabled, null);
+  assert.equal((await report({ ...renewal, environment: 'Sandbox' })).autoRenewEnabled, null);
 });

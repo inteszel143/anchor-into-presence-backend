@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { AppStoreError, getAppStoreOffers } from "@/lib/appStoreOffers";
 
+import { findOfferCustomers } from "@/lib/offerCustomers";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "Choose production or sandbox." }, { status: 400, headers });
   }
   try {
-    return NextResponse.json(await getAppStoreOffers(environment), { headers });
+    const report = await getAppStoreOffers(environment);
+    // Exact transaction matches only: never guess an account from a name or date.
+    const customers = await findOfferCustomers(report.transactions.map(row => row.id), "ios");
+    return NextResponse.json({ ...report, transactions: report.transactions.map(row => ({ ...row, customer: customers.get(row.id) })) }, { headers });
   } catch (error) {
     return NextResponse.json({ message: error instanceof AppStoreError ? error.message : "Couldn’t reach Apple. Please try again." }, { status: 502, headers });
   }

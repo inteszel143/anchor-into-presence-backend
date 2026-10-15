@@ -1,3 +1,4 @@
+import type { OfferCustomer } from "./offerCustomers";
 export type GooglePlayEnvironment = "production" | "test";
 
 export type GooglePlayOffer = {
@@ -11,6 +12,10 @@ export type GooglePlayOffer = {
   startedAt: number | null;
   expiresAt: number | null;
   state: string;
+  customer?: OfferCustomer;
+  autoRenewEnabled: boolean | null;
+  regularPrice: string | null;
+  pricingPhase: string;
 };
 
 export type GooglePlayOfferReport = {
