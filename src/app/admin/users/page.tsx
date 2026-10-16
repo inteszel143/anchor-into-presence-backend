@@ -1,9 +1,9 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Search, Trash2, Users, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Trash2, Users, X, RefreshCw, Leaf } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import styles from "./users.module.css";
+import styles from "./users-wellness.module.css";
 
 type User = {
   _id: string;
@@ -95,11 +95,16 @@ export default function AdminUserListPage() {
   return (
     <div className={styles.page}>
       <div className={styles.heading}>
-        <div><p className={styles.eyebrow}>People</p><h1>Users</h1><p className={styles.subtitle}>View registered users and manage account access.</p></div>
+        <div><p className={styles.eyebrow}>Your community</p><h1>Users</h1><p className={styles.subtitle}>The people making presence part of their everyday.</p></div>
         <div className={styles.count} aria-live="polite"><Users size={20} aria-hidden="true" /><div><strong>{busy || error ? "—" : total.toLocaleString()}</strong><span>{filtered ? "Matching users" : "Registered users"}</span></div></div>
       </div>
 
-      <section className={styles.card} aria-label="User management">
+      <div className={styles.communityNote}><Leaf size={18} aria-hidden="true" /><p>A space to connect. Find members, review their account status, and keep your community cared for.</p></div>
+      <section className={styles.card} aria-label="User management" aria-busy={busy}>
+        <div className={styles.directoryHeading}>
+          <div><h2>Community directory</h2><p>Registered accounts and membership details</p></div>
+          <button type="button" className={styles.refreshButton} disabled={busy} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={15} aria-hidden="true" />Refresh</button>
+        </div>
         <div className={styles.filters}>
           <label className={styles.searchLabel} htmlFor="user-search">Search users
             <span className={styles.searchField}><Search size={18} aria-hidden="true" /><input id="user-search" type="search" placeholder="Search by name or email" value={search} onChange={event => setSearch(event.target.value)} /></span>
@@ -111,6 +116,7 @@ export default function AdminUserListPage() {
           {filtered && <button className={styles.clearButton} type="button" onClick={clearFilters}><X size={15} aria-hidden="true" />Clear filters</button>}
         </div>
 
+        {filtered && <div className={styles.filterSummary} aria-live="polite"><span>Filtered view</span>{search && <span className={styles.filterChip}>Search: {search}</span>}{startDate && <span className={styles.filterChip}>From {startDate}</span>}{endDate && <span className={styles.filterChip}>To {endDate}</span>}</div>}
         {error ? <div className={styles.empty} role="alert"><Users size={32} aria-hidden="true" /><h2>Users couldn’t load</h2><p>{error}</p><button className={styles.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div>
           : busy ? <div className={styles.empty} role="status"><span className={styles.loadingDot} />Loading users…</div>
           : users.length === 0 ? <div className={styles.empty}><Users size={36} aria-hidden="true" /><h2>{filtered ? "No matching users" : "No users yet"}</h2><p>{filtered ? "Try another name, email, or date range." : "Registered accounts will appear here."}</p>{filtered && <button className={styles.textButton} onClick={clearFilters}>Clear filters</button>}</div>

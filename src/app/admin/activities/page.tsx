@@ -2,6 +2,8 @@
 
 import { Activity, ChevronLeft, ChevronRight, Eye, ImageIcon, Pencil, Plus, Search, Trash2, Video, X } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import { getImageUrl } from "@/lib/getImageUrl";
 import { getActivityImage } from "@/lib/activityMedia";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
@@ -17,6 +19,17 @@ type ActivityItem = {
   contentType?: string;
   taggedCategoriesData?: { name: string }[];
 };
+
+function ActivityThumbnail({ activity }: { activity: ActivityItem }) {
+  const src = getImageUrl(activity.thumbnail || getActivityImage(activity));
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  return <span className={styles.activityThumbnail}>
+    {src && failedSrc !== src
+      ? <Image src={src} alt="" width={56} height={56} unoptimized onError={() => setFailedSrc(src)} />
+      : <Activity size={22} aria-hidden="true" />}
+  </span>;
+}
 
 function scheduleLabel(value?: string) {
   if (!value) return "Not scheduled";
@@ -119,7 +132,7 @@ export default function AdminActivitiesListPage() {
           : <div className={styles.tableScroll} role="region" aria-label="Activities table" tabIndex={0}>
             <table className={styles.table}><thead><tr><th scope="col">Activity</th><th scope="col">Media</th><th scope="col">Schedule date</th><th scope="col">Status</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead><tbody>
               {activities.map(activity => <tr key={activity._id}>
-                <td><div className={styles.identity}><span className={styles.activityIcon}><Activity size={20} aria-hidden="true" /></span><div><Link className={styles.name} href={`/admin/activities/${activity._id}/view`}>{activity.name || "Untitled activity"}</Link><span className={styles.userId} title={activity._id}>#{activity._id.slice(-6)}</span></div></div></td>
+                <td><div className={styles.identity}><ActivityThumbnail activity={activity} /><div><Link className={styles.name} href={`/admin/activities/${activity._id}/view`}>{activity.name || "Untitled activity"}</Link><span className={styles.userId} title={activity._id}>#{activity._id.slice(-6)}</span></div></div></td>
                 <td>{(getActivityImage(activity) || activity.video) ? <Link className={styles.mediaLink} href={`/admin/activities/${activity._id}/view`}>{getActivityImage(activity) ? <ImageIcon size={16} aria-hidden="true" /> : <Video size={16} aria-hidden="true" />}Preview</Link> : <span className={styles.muted}>No media</span>}</td>
                 <td className={styles.date}>{scheduleLabel(activity.scheduleDate)}</td>
                 <td><span className={`${styles.badge} ${activity.status === 1 ? styles.active : styles.inactive}`}>{activity.status === 1 ? "Active" : "Inactive"}</span></td>

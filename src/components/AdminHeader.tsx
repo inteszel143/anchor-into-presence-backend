@@ -1,5 +1,7 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import styles from "./AdminHeader.module.css";
 import { useState, useEffect, useRef } from "react";
 import SupportNotification from "./SupportNotification";
 import Image from "next/image";
@@ -9,6 +11,9 @@ import { getImageUrl } from "@/lib/getImageUrl";
 import { toast } from "react-toastify";
 
 const AdminHeader = () => {
+  const pathname = usePathname();
+  const section = ({ dashboard: "Dashboard", users: "Users", offers: "Promotional offers", activities: "Activities", category: "Categories", content: "Content", faq: "FAQs", support: "Support", notification: "Notifications", profile: "Profile", "reset-password": "Reset password" } as Record<string, string>)[pathname.split("/")[2]] || "Workspace";
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
   const [showDropdown, setShowDropdown] = useState(false);
 
   const [adminName, setAdminName] = useState("");
@@ -68,10 +73,10 @@ const AdminHeader = () => {
 
   return (
     <>
-      <header>
+      <header className={styles.header}>
         <div className="container">
           <div className="row justify-content-between align-items-center">
-            <div className="col-5 col-md-5" />
+            <div className="col-5 col-md-5"><div className={styles.breadcrumb}><span>Workspace</span><span aria-hidden="true">/</span><strong>{section}</strong></div></div>
             <div className="col-7 col-md-7">
               <div className="header-menu">
                 <ul className="header-menu-list">
@@ -83,10 +88,12 @@ const AdminHeader = () => {
                     <div
                       className="profile-nav-wrapper position-relative"
                       ref={dropdownRef}
+                      onKeyDown={event => { if (event.key === "Escape") { setShowDropdown(false); profileButtonRef.current?.focus(); } }}
                     >
                       <button
                         type="button"
-                        className="header-link-btn profile_btn"
+                        className={`header-link-btn profile_btn ${styles.profileButton}`}
+                        ref={profileButtonRef}
                         aria-label="Admin profile options"
                         aria-expanded={showDropdown}
                         aria-controls="admin-profile-dropdown"
@@ -101,6 +108,7 @@ const AdminHeader = () => {
                           onError={() => { if (imageUrl) setImageUrl(""); }}
                           unoptimized
                         />
+                        <span className={styles.profileName}>{adminName || "Admin"}<small>Administrator</small></span>
                         <ChevronDown
                           className="profile-chevron"
                           size={16}
@@ -161,10 +169,10 @@ const AdminHeader = () => {
                             </li>
 
                             <li>
-                              <a type="button" className="profile-links-list" onClick={handleLogout}>
+                              <button type="button" className={`profile-links-list ${styles.logout}`} onClick={handleLogout}>
                                 <span className="navicon"><LogOut /></span>
                                 Logout
-                              </a>
+                              </button>
                             </li>
                           </ul>
                         </div>

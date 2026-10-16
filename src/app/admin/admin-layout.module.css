@@ -1,4 +1,6 @@
 .layout {
+  min-height: 100vh;
+  background: #f7f6f0;
   --admin-header-height: 89px;
   --admin-sidebar-width: 280px;
 }
@@ -49,3 +51,5 @@
     transition: none;
   }
 }
+
+.layout :global(.content-wrapper), .layout :global(.main-section) { background: #f7f6f0; }

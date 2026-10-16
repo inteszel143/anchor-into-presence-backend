@@ -51,8 +51,8 @@ export default function AddFaqModal({ onAdd }: Props) {
     <>
       <Popup
         trigger={
-          <button className="primary-btn">
-            <ListPlus />
+          <button type="button" className={styles.addButton}>
+            <ListPlus size={18} aria-hidden="true" />
             <span className="btntext">Add FAQ</span>
           </button>
         }

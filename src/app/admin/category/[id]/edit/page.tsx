@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, FolderOpen } from "lucide-react";
+import styles from "../../category-form.module.css";
 import { toast } from "react-toastify";
 
 export default function EditActivityPage() {
@@ -73,59 +76,23 @@ export default function EditActivityPage() {
     }
   };
 
-  if (fetching) return <p role="status">Loading category…</p>;
-  if (loadError) return <p role="alert">{loadError}</p>;
+  if (fetching) return <div className={styles.page}><p className={styles.state} role="status">Loading category…</p></div>;
+  if (loadError) return <div className={styles.page}><p className={styles.state} role="alert">{loadError}</p><Link className={styles.back} href="/admin/category">Back to categories</Link></div>;
 
   return (
-    <>
-      <div className="row justify-content-center">
-        <div className="col-lg-6">
-          <div className="common-content-wrapper">
-            <div className="sub-heading">
-              <h2>Edit Category</h2>
-            </div>
-            <div className="row gy-4">
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium">
-                    Category Name
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium">
-                    Description
-                  </label>
-                  <textarea
-                    className="form-control"
-                    rows={4}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="hstack justify-content-end mt-3">
-                  <button
-                    type="submit"
-                    className="btn btn-primary px-5 py-2 rounded"
-                    disabled={loading}
-                  >
-                    {loading ? "Updating..." : "Update Category"}
-                  </button>
-                </div>
-              </form>
-            </div>
+    <div className={styles.page}>
+      <Link href="/admin/category" className={styles.back}><ArrowLeft size={16} aria-hidden="true" />Back to categories</Link>
+      <div className={styles.heading}><p className={styles.eyebrow}>Library organization</p><h1>Edit category</h1><p>Give your community a clear path to the experiences they need.</p></div>
+      <section className={styles.card} aria-labelledby="category-details-heading">
+        <div className={styles.cardHeading}><FolderOpen size={22} aria-hidden="true" /><div><h2 id="category-details-heading">Category details</h2><p>A name and description to bring your library together.</p></div></div>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.fields}>
+            <label htmlFor="category-name">Category name<input id="category-name" type="text" value={name} onChange={event => setName(event.target.value)} placeholder="e.g. Mindful mornings" required /></label>
+            <label htmlFor="category-description">Description<textarea id="category-description" rows={6} value={description} onChange={event => setDescription(event.target.value)} placeholder="Describe what members will discover in this category." required /></label>
           </div>
-        </div>
-      </div>
-    </>
+          <div className={styles.footer}><span>Both fields are required.</span><div><Link href="/admin/category" className={styles.cancel}>Cancel</Link><button type="submit" disabled={loading}>{loading ? "Saving…" : "Save changes"}</button></div></div>
+        </form>
+      </section>
+    </div>
   );
 }

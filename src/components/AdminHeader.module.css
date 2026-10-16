@@ -1,0 +1,11 @@
+.header { background: #fffef9 !important; border-bottom: 1px solid #e0e4d8; box-shadow: none !important; }
+.header > :global(.container) { max-width: none; padding-inline: 32px; }
+.breadcrumb { display: flex; align-items: center; gap: 12px; color: #637263; font-size: 12px; }
+.breadcrumb strong { color: #29483e; font-weight: 600; }
+.profileButton { display: inline-flex; align-items: center; gap: 10px; border-radius: 12px; color: #29483e; }
+.profileName { text-align: left; font-size: 12px; font-weight: 600; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.profileName small { display: block; color: #637263; font-size: 10px; font-weight: 400; margin-top: 3px; }
+.logout { border: 0; background: transparent; width: 100%; text-align: left; }
+.header button:focus-visible, .header a:focus-visible { outline: 3px solid #82a58e; outline-offset: 3px; }
+@media (max-width: 992px) { .breadcrumb { padding-left: 52px; } .breadcrumb > span { display: none; } }
+@media (max-width: 576px) { .header > :global(.container) { padding-inline: 16px; } .profileName { display: none; } .breadcrumb { font-size: 11px; } }

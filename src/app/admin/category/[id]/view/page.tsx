@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import clsx from "clsx";
+import Link from "next/link";
+import { ArrowLeft, Pencil } from "lucide-react";
+import styles from "../../category-form.module.css";
 import { getImageUrl } from "@/lib/getImageUrl";
 
 type Category = {
@@ -42,57 +44,20 @@ export default function ActivityDetailsPage() {
     fetchActivity();
   }, [id]);
 
-  if (loading) return <div className="p-6">Loading...</div>;
-  if (!activity) return <div className="p-6">Category unavailable. Please reload the page.</div>;
+  if (loading) return <div className={styles.page}><p className={styles.state} role="status">Loading category…</p></div>;
+  if (!activity) return <div className={styles.page}><p className={styles.state} role="alert">Category unavailable. Please reload the page.</p><Link className={styles.back} href="/admin/category">Back to categories</Link></div>;
 
   return (
-    <>
-      <div className="row justify-content-center">
-        <div className="col-lg-8">
-          <div className="bg-white rounded-2xl shadow-md p-5">
-            <div className="mb-4">
-              <h1 className="mb-2 fs-14"> Category Name:</h1>
-              <p className="fs-16 text-gray-900 mb-0">{activity.name}</p>
-            </div>
-
-            <div className="mb-4">
-              <h2 className="fs-12 mb-2">Description:</h2>
-              <p className="mb-0">{activity.description}</p>
-            </div>
-
-            {activity.video && (
-              <div className="mb-4">
-                <h2 className="fs-14 mb-2">Video:</h2>
-                <div className="relative overflow-hidden rounded-lg border">
-                  <video
-                    src={getImageUrl(activity.video)}
-                    controls
-                    className="w-full max-h-[400px] rounded-lg"
-                  />
-                </div>
-              </div>
-            )}
-
-            <section className="hstack flex-wrap justify-content-between mt-8 border-top pt-3">
-              <div>
-                <span className="font-medium fs-12">Created At:</span>{" "}
-                {new Date(activity.createdAt).toLocaleString()}
-              </div>
-              <div>
-                <span className="font-medium fs-12">Status:</span>{" "}
-                <span
-                  className={clsx(
-                    "fs-12",
-                    activity.status === 1 ? "text-success" : "text-danger"
-                  )}
-                >
-                  {activity.status === 1 ? "Active" : "Inactive"}
-                </span>
-              </div>
-            </section>
-          </div>
+    <div className={styles.page}>
+      <Link href="/admin/category" className={styles.back}><ArrowLeft size={16} aria-hidden="true" />Back to categories</Link>
+      <div className={styles.heading}><p className={styles.eyebrow}>Library organization</p><h1>{activity.name || "Untitled category"}</h1><p>Category overview</p></div>
+      <section className={styles.card} aria-label="Category details">
+        <div className={styles.cardHeading}><h2>Description</h2><Link href={`/admin/category/${id}/edit`} className={styles.edit}><Pencil size={15} aria-hidden="true" />Edit category</Link></div>
+        <div className={styles.fields}><p className={styles.description}>{activity.description || "No description added."}</p>
+          {activity.video && <video className={styles.video} src={getImageUrl(activity.video)} controls />}
         </div>
-      </div>
-    </>
+        <div className={styles.footer}><span>Created {new Date(activity.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span><span className={`${styles.status} ${activity.status !== 1 ? styles.inactive : ""}`}>{activity.status === 1 ? "Active" : "Inactive"}</span></div>
+      </section>
+    </div>
   );
 }
