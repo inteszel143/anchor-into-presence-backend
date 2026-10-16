@@ -15,11 +15,11 @@ export default function AdminLayout({
 
   if (!showSidebar) {
     // Show only the content (e.g., for login page)
-    return <div>{children}</div>;
+    return <div className={styles.theme}>{children}</div>;
   }
 
   return (
-    <div className={`admin-layout ${styles.layout}`}>
+    <div className={`admin-layout ${styles.theme} ${styles.layout}`}>
       <AdminSidebar />
       <div className="main-wrapper">
         <AdminHeader />

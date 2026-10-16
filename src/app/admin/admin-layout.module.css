@@ -1,6 +1,55 @@
+@font-face {
+  font-family: 'Admin Roboto';
+  src: url('/assets/fonts/Roboto-Variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* Scope typography to admin routes, including dialogs and toast portals. */
+:global(body):has(.theme),
+.theme {
+  --admin-font: 'Admin Roboto', Arial, sans-serif;
+  --inter-font: var(--admin-font);
+  --toastify-font-family: var(--admin-font);
+  font-family: var(--admin-font);
+}
+
+.theme :is(button, input, select, textarea),
+.theme :global(.ql-container),
+.theme :global(.ql-toolbar) {
+  font-family: var(--admin-font);
+}
+
+.theme {
+  /* Warm ivory, stone, and olive from the brand reference. */
+  --admin-text: #4b473f;
+  --admin-muted: #787160;
+  --admin-border: #e5e0d7;
+  --admin-surface: #fffdfa;
+  --admin-soft: #eeece5;
+  --admin-primary: #514c40;
+  --admin-canvas: #f7f5f1;
+  --admin-accent: #92967d;
+  --admin-highlight: #e9e4d8;
+  --admin-strong-border: #d4cebf;
+  --admin-sidebar: #eeece5;
+  --admin-selected: #e2ddd1;
+  --admin-primary-hover: #403c32;
+  --admin-olive: #92967d;
+  --admin-deep-olive: #77765f;
+  --admin-leaf: #b6b49e;
+  --admin-pale-leaf: #cdc8b6;
+  --admin-decoration: #e0dbcd;
+  --admin-shadow: #514c4004;
+  --admin-overlay: #514c4066;
+  --admin-surface-overlay: #fffdfaed;
+  color: var(--admin-text);
+}
+
 .layout {
   min-height: 100vh;
-  background: #f7f6f0;
+  background: var(--admin-canvas, #f7f5f1);
   --admin-header-height: 89px;
   --admin-sidebar-width: 280px;
 }
@@ -52,4 +101,4 @@
   }
 }
 
-.layout :global(.content-wrapper), .layout :global(.main-section) { background: #f7f6f0; }
+.layout :global(.content-wrapper), .layout :global(.main-section) { background: var(--admin-canvas, #f7f5f1); }

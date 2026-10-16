@@ -1,35 +1,35 @@
-.page { max-width: 1040px; margin: 0 auto; padding-inline: 32px; color: #29483e; }
-.back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 16px; color: #637263; text-decoration: none; font-size: 12px; }
+.page { max-width: 1040px; margin: 0 auto; padding-inline: 32px; color: var(--admin-text, #4b473f); }
+.back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 16px; color: var(--admin-muted, #787160); text-decoration: none; font-size: 12px; }
 .heading { margin-bottom: 28px; }
-.eyebrow { margin: 0 0 8px; color: #637263; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.eyebrow { margin: 0 0 8px; color: var(--admin-muted, #787160); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
 .heading h1 { margin: 0 0 10px; font-size: 30px; font-weight: 650; letter-spacing: -.8px; overflow-wrap: anywhere; }
-.heading > p:last-child { margin: 0; color: #637263; font-size: 14px; line-height: 1.7; }
-.card { background: #fffef9; border: 1px solid #e0e4d8; border-radius: 20px; overflow: hidden; }
-.cardHeading { display: flex; align-items: center; gap: 14px; padding: 24px; background: #f1f3ec; border-bottom: 1px solid #e0e4d8; }
-.cardHeading > svg { flex-shrink: 0; color: #637263; }
+.heading > p:last-child { margin: 0; color: var(--admin-muted, #787160); font-size: 14px; line-height: 1.7; }
+.card { background: var(--admin-surface, #fffdfa); border: 1px solid var(--admin-border, #e5e0d7); border-radius: 20px; overflow: hidden; }
+.cardHeading { display: flex; align-items: center; gap: 14px; padding: 24px; background: var(--admin-sidebar, #eeece5); border-bottom: 1px solid var(--admin-border, #e5e0d7); }
+.cardHeading > svg { flex-shrink: 0; color: var(--admin-muted, #787160); }
 .cardHeading h2 { margin: 0; font-size: 17px; font-weight: 600; }
-.cardHeading p { margin: 6px 0 0; color: #637263; font-size: 12px; line-height: 1.7; }
+.cardHeading p { margin: 6px 0 0; color: var(--admin-muted, #787160); font-size: 12px; line-height: 1.7; }
 .fields { display: grid; gap: 24px; padding: 28px; }
 .fields label { display: flex; flex-direction: column; gap: 10px; font-size: 13px; font-weight: 600; }
-.fields input, .fields textarea { width: 100%; border: 1px solid #e0e4d8; border-radius: 10px; background: #f7f6f0; padding: 12px 14px; color: #29483e; font: inherit; font-weight: 400; line-height: 1.7; }
+.fields input, .fields textarea { width: 100%; border: 1px solid var(--admin-border, #e5e0d7); border-radius: 10px; background: var(--admin-canvas, #f7f5f1); padding: 12px 14px; color: var(--admin-text, #4b473f); font: inherit; font-weight: 400; line-height: 1.7; }
 .fields textarea { resize: vertical; }
-.fields input::placeholder, .fields textarea::placeholder { color: #637263; }
-.footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 28px; border-top: 1px solid #e0e4d8; background: #f7f6f0; }
-.footer > span { font-size: 12px; color: #637263; }
+.fields input::placeholder, .fields textarea::placeholder { color: var(--admin-muted, #787160); }
+.footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 28px; border-top: 1px solid var(--admin-border, #e5e0d7); background: var(--admin-canvas, #f7f5f1); }
+.footer > span { font-size: 12px; color: var(--admin-muted, #787160); }
 .footer > div { display: flex; align-items: center; gap: 12px; }
-.footer button, .cancel, .edit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid #e0e4d8; border-radius: 10px; padding: 10px 18px; font-size: 13px; text-decoration: none; color: #29483e; background: #fffef9; cursor: pointer; }
-.footer button { background: #e6ecdf; border-color: #baceb6; color: #29483e; }
-.footer button:hover:not(:disabled) { background: #dce8d8; }
+.footer button, .cancel, .edit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid var(--admin-border, #e5e0d7); border-radius: 10px; padding: 10px 18px; font-size: 13px; text-decoration: none; color: var(--admin-text, #4b473f); background: var(--admin-surface, #fffdfa); cursor: pointer; }
+.footer button { background: var(--admin-highlight, #e9e4d8); border-color: var(--admin-strong-border, #d4cebf); color: var(--admin-text, #4b473f); }
+.footer button:hover:not(:disabled) { background: var(--admin-selected, #e2ddd1); }
 .footer button:disabled { opacity: .5; cursor: wait; }
 .edit { margin-left: auto; }
 .description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; font-size: 14px; }
 .video { width: 100%; max-height: 400px; border-radius: 12px; }
-.status { border-radius: 20px; padding: 6px 12px; background: #e9efdf; }
-.state { padding: 40px 24px; border: 1px solid #e0e4d8; background: #fffef9; border-radius: 20px; }
-.page :is(a,button,input,textarea):focus-visible { outline: 3px solid #82a58e; outline-offset: 3px; }
+.status { border-radius: 20px; padding: 6px 12px; background: var(--admin-soft, #eeece5); }
+.state { padding: 40px 24px; border: 1px solid var(--admin-border, #e5e0d7); background: var(--admin-surface, #fffdfa); border-radius: 20px; }
+.page :is(a,button,input,textarea):focus-visible { outline: 3px solid var(--admin-accent, #92967d); outline-offset: 3px; }
 @media (max-width: 576px) { .page { padding-inline: 16px; } .heading h1 { font-size: 28px; } .cardHeading, .fields, .footer { padding: 20px; } .cardHeading { flex-wrap: wrap; } .fields input, .fields textarea { font-size: 16px; } .footer > div { width: 100%; } .footer button, .cancel { flex: 1; } }
 
-.footer > .inactive { background: #e9efdf; color: #637263; }
+.footer > .inactive { background: var(--admin-soft, #eeece5); color: var(--admin-muted, #787160); }
 
-.footer button { background: #315c49; border-color: #315c49; color: #fffef9; }
-.footer button:hover:not(:disabled) { background: #254936; color: #fffef9; }
+.footer button { background: var(--admin-primary, #514c40); border-color: var(--admin-primary, #514c40); color: var(--admin-surface, #fffdfa); }
+.footer button:hover:not(:disabled) { background: var(--admin-primary-hover, #403c32); color: var(--admin-surface, #fffdfa); }
