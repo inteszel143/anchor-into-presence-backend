@@ -15,6 +15,9 @@
   font-family: var(--admin-font);
 }
 
+/* Override the legacy universal Inter rule for every admin text element. */
+.theme *,
+:global(body):has(.theme) :global(.Toastify) *,
 .theme :is(button, input, select, textarea),
 .theme :global(.ql-container),
 .theme :global(.ql-toolbar) {
