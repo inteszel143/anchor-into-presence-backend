@@ -60,10 +60,10 @@
 .requester { display: block; min-width: 110px; max-width: 180px; overflow-wrap: anywhere; font-size: 13px; }
 .date { white-space: nowrap; color: var(--admin-muted, #787160); font-size: 13px; }
 .open { color: #8a5a16; background: #fff4dd; }
-.resolved { color: var(--admin-muted, #787160); background: var(--admin-soft, #eeece5); }
+.resolved { color: #166534; background: #dcfce7; }
 .resolveButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 8px 12px; color: var(--admin-muted, #787160); background: var(--admin-surface, #fffdfa); border: 1px solid var(--admin-border, #e5e0d7); border-radius: 8px; cursor: pointer; font-size: 13px; white-space: nowrap; }
 .resolveButton:hover:not(:disabled) { background: var(--admin-soft, #eeece5); }
-.completed { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; color: var(--admin-muted, #787160); font-size: 13px; white-space: nowrap; }
+.completed { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; color: #166534; font-size: 13px; white-space: nowrap; }
 @media (max-width: 768px) { .dateFilters { flex: 1; } .dateFilters label { width: 50%; } }
 
 /* Shared wellness visual language; page behavior stays local. */

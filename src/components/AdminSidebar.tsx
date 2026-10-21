@@ -71,7 +71,7 @@ export default function AdminSidebar() {
             </div>
           ))}
         </nav>
-        <div className={styles.footer}><span aria-hidden="true" /><p>A little more presence, every day.</p></div>
+        <div className={styles.footer}><span aria-hidden="true" /><p>Your daily ritual for grounding, meditation, and presence.</p></div>
       </aside>
     </>
   );

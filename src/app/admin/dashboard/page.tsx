@@ -70,7 +70,7 @@ export default function DashboardPage() {
       </div>
       <section className={styles.welcome} aria-labelledby="welcome-heading">
         <div className={styles.welcomeCopy}>
-          <span className={styles.welcomeLabel}><Leaf size={15} aria-hidden="true" />A little more presence, every day</span>
+          <span className={styles.welcomeLabel}><Leaf size={15} aria-hidden="true" />Your daily ritual for grounding, meditation, and presence.</span>
           <h2 id="welcome-heading">A thoughtful space.<br />A growing community.</h2>
           <p>Care for your community, curate meaningful experiences, and make room for the moments that matter.</p>
           <Link href="/admin/activities">Explore your library <ArrowRight size={16} aria-hidden="true" /></Link>
