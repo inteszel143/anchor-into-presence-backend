@@ -6,7 +6,7 @@
 .heading h1 { font-size: clamp(24px, 3vw, 34px); line-height: 1.25; font-weight: 650; margin: 0 0 14px; overflow-wrap: anywhere; }
 .badge { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 30px; font-size: 12px; font-weight: 600; }
 .badge > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.active { background: var(--admin-soft, #eeece5); color: var(--admin-muted, #787160); }
+.active { color: var(--admin-active-text, #276749); background: var(--admin-active-background, #e6f4ea); }
 .inactive { background: #f2eeee; color: #78534f; }
 .editButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; min-height: 44px; padding: 11px 18px; border: 1px solid transparent; border-radius: 10px; background: var(--admin-highlight, #e9e4d8); color: var(--admin-text, #4b473f); font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
 .editButton:hover { background: var(--admin-selected, #e2ddd1); color: var(--admin-text, #4b473f); }

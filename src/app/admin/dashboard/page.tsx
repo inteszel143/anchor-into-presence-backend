@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/AdminLink";
 import { Activity, ArrowRight, Bell, FolderOpen, LifeBuoy, Plus, Users, Leaf, Tag } from "lucide-react";
 import styles from "./dashboard.module.css";
 

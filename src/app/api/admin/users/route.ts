@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   const total = await User.countDocuments(query);
   const users = await User.find(query)
-    .select("name email isBlocked createdAt")
+    .select("name email isBlocked isTestAccount createdAt")
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit);

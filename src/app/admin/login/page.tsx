@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import styles from "./login.module.css";
 
 export default function AdminLoginPage() {
@@ -72,8 +72,12 @@ export default function AdminLoginPage() {
             <div><strong>Anchor Into Presence</strong><span>Admin workspace</span></div>
           </div>
           <div className={styles.brandMessage}>
-            <h2>Welcome back!</h2>
-            <p>Enter your email and password<br />to continue to your workspace.</p>
+            <div className={styles.welcomeVisual}>
+              <Image src="/assets/images/anchor-into-presence-logo.png" alt="" width={132} height={132} priority />
+              <span className={styles.welcomeBubble}>Welcome back <span role="img" aria-label="waving hand">👋</span></span>
+            </div>
+            <h2>Good to see <br />you again.</h2>
+            <p>A little presence goes a long way. Pick up where you left off and care for your growing community.</p>
           </div>
           <p className={styles.brandFooter}>Small moments. Lasting connection.</p>
         </aside>
@@ -81,7 +85,7 @@ export default function AdminLoginPage() {
         <section className={styles.formPanel} aria-labelledby="login-title">
           <div className={styles.formContent}>
             <h1 id="login-title">Sign in</h1>
-            <p className={styles.intro}>TO YOUR ADMIN WORKSPACE</p>
+            <p className={styles.intro}>Welcome to your admin workspace. Sign in with your email and password to continue.</p>
             <form onSubmit={handleLogin} noValidate aria-busy={loading}>
               <div className={styles.field}>
                 <label htmlFor="email">Email address</label>
@@ -96,7 +100,7 @@ export default function AdminLoginPage() {
                 <div className={`${styles.inputWrap} ${errors.password ? styles.invalid : ""}`}>
                   <LockKeyhole size={19} aria-hidden="true" />
                   <input ref={passwordInput} id="loginPassword" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="Enter your password" value={password} disabled={loading} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? "password-error" : undefined} onChange={event => { setPassword(event.target.value); setErrors(previous => ({ ...previous, password: "" })); setError(""); }} />
-                  <button className={styles.eyeButton} type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}</button>
+                  <button className={styles.eyeButton} type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} disabled={loading} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}</button>
                 </div>
                 {errors.password && <p id="password-error" className={styles.fieldError}>{errors.password}</p>}
               </div>
@@ -107,7 +111,7 @@ export default function AdminLoginPage() {
               </button>
               <p className={styles.loadingStatus} role="status">{loading ? "Signing in. Please wait." : ""}</p>
             </form>
-            <p className={styles.accessNote}>For authorized team members only.<br />Need access? Contact your workspace administrator.</p>
+            <div className={styles.accessNote}><ShieldCheck size={18} aria-hidden="true" /><p>A private space for your team.<br />Need access? Contact your workspace administrator.</p></div>
           </div>
           <p className={styles.formFooter}>Anchor Into Presence · Admin workspace</p>
         </section>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/AdminLink";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Activity, Bell, ChevronRight, FileText, FolderOpen, HelpCircle, LayoutDashboard, LifeBuoy, Menu, Tag, Users, X } from "lucide-react";

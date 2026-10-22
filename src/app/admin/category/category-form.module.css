@@ -24,7 +24,7 @@
 .edit { margin-left: auto; }
 .description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; font-size: 14px; }
 .video { width: 100%; max-height: 400px; border-radius: 12px; }
-.status { border-radius: 20px; padding: 6px 12px; background: var(--admin-soft, #eeece5); }
+.status { border-radius: 20px; padding: 6px 12px; color: var(--admin-active-text, #276749); background: var(--admin-active-background, #e6f4ea); }
 .state { padding: 40px 24px; border: 1px solid var(--admin-border, #e5e0d7); background: var(--admin-surface, #fffdfa); border-radius: 20px; }
 .page :is(a,button,input,textarea):focus-visible { outline: 3px solid var(--admin-accent, #92967d); outline-offset: 3px; }
 @media (max-width: 576px) { .page { padding-inline: 16px; } .heading h1 { font-size: 28px; } .cardHeading, .fields, .footer { padding: 20px; } .cardHeading { flex-wrap: wrap; } .fields input, .fields textarea { font-size: 16px; } .footer > div { width: 100%; } .footer button, .cancel { flex: 1; } }

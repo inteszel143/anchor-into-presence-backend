@@ -29,7 +29,7 @@
 .description { min-width: 200px; max-width: 520px; margin: 0; color: var(--admin-muted, #787160); font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; white-space: pre-wrap; }
 .badge { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 30px; white-space: nowrap; }
 .badge > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.active { color: var(--admin-muted, #787160); background: var(--admin-soft, #eeece5); }
+.active { color: var(--admin-active-text, #276749); background: var(--admin-active-background, #e6f4ea); }
 .inactive { color: #78534f; background: #f2eeee; }
 .actionsHeading { text-align: right; }
 .actions { display: flex; justify-content: flex-end; gap: 6px; }

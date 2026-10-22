@@ -15,10 +15,20 @@ const UserSchema = new mongoose.Schema(
     otpExpiresAt: Date,
     fcmToken: String,
     notificationReceive: { type: Boolean, default: true },
+    isTestAccount: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
+// Next.js hot reload can retain models compiled before this field existed.
+// Update every cached alias so strict updates do not silently drop the label.
+for (const name of ["User", "user", "users"]) {
+  const cachedModel = mongoose.models[name];
+  if (cachedModel && !cachedModel.schema.path("isTestAccount")) {
+    cachedModel.schema.add({ isTestAccount: { type: Boolean, default: false } });
+  }
+}
+
 export const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 if (!mongoose.models.user) {

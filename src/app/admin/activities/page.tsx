@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, ChevronLeft, ChevronRight, Eye, ImageIcon, Pencil, Plus, Search, Trash2, Video, X } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/AdminLink";
 import Image from "next/image";
 import { getImageUrl } from "@/lib/getImageUrl";
 import { getActivityImage } from "@/lib/activityMedia";

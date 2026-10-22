@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Eye, FolderOpen, Pencil, Search, X } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/AdminLink";
 import { useEffect, useState } from "react";
 import styles from "./categories.module.css";
 

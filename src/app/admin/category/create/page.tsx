@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/AdminLink";
 import { ArrowLeft, FolderOpen } from "lucide-react";
 import styles from "../category-form.module.css";
 import { toast } from "react-toastify";

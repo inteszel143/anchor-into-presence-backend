@@ -104,5 +104,94 @@ test('users end-date includes the full day and does not return password fields',
   const response = await GET(new NextRequest('http://localhost/api/admin/users?endDate=2026-10-04'));
   assert.equal(response.status, 200);
   assert.equal(query.createdAt.$lte.toISOString(), '2026-10-04T23:59:59.999Z');
-  assert.equal(selection, 'name email isBlocked createdAt');
+  assert.equal(selection, 'name email isBlocked isTestAccount createdAt');
+});
+
+test('test account labels are explicit, reversible, and cannot change account access', async () => {
+  const updates = [];
+  const { PATCH } = loadModule('src/app/api/admin/users/[id]/test-account/route.ts', {
+    '@/lib/db': { connectDB: async () => {} },
+    '@/models/User': { User: { findByIdAndUpdate: (id, update) => {
+      updates.push(update);
+      return { select: async () => ({ isTestAccount: update.$set.isTestAccount }) };
+    } } },
+  });
+  const context = { params: Promise.resolve({ id: '507f1f77bcf86cd799439011' }) };
+  const request = body => new NextRequest('http://localhost/api/admin/users/507f1f77bcf86cd799439011/test-account', { method: 'PATCH', body: JSON.stringify(body) });
+  for (const value of [true, false]) {
+    const response = await PATCH(request({ isTestAccount: value, isBlocked: true }), context);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { isTestAccount: value });
+    assert.deepEqual(updates.at(-1), { $set: { isTestAccount: value } });
+  }
+  for (const body of [{}, { isTestAccount: 'true' }, null]) {
+    assert.equal((await PATCH(request(body), context)).status, 400);
+  }
+  assert.equal((await PATCH(request({ isTestAccount: true }), { params: Promise.resolve({ id: 'invalid' }) })).status, 400);
+  assert.equal(updates.length, 2);
+});
+
+test('test account label update reports a missing user', async () => {
+  const { PATCH } = loadModule('src/app/api/admin/users/[id]/test-account/route.ts', {
+    '@/lib/db': { connectDB: async () => {} },
+    '@/models/User': { User: { findByIdAndUpdate: () => ({ select: async () => null }) } },
+  });
+  const response = await PATCH(new NextRequest('http://localhost/api/admin/users/507f1f77bcf86cd799439011/test-account', { method: 'PATCH', body: JSON.stringify({ isTestAccount: true }) }), { params: Promise.resolve({ id: '507f1f77bcf86cd799439011' }) });
+  assert.equal(response.status, 404);
+});
+
+test('account overview returns totals, including zero for an empty database', async () => {
+  for (const result of [[], [{ totalAccounts: 12, testAccounts: 3, estimatedActiveSubscriptions: 4 }]]) {
+    const { GET } = loadModule('src/app/api/admin/users/summary/route.ts', {
+      '@/lib/db': { connectDB: async () => {} },
+      '@/models/User': { User: { aggregate: async () => result } },
+      '@/models/UserPurchase': { UserPurchase: { collection: { name: 'user_purchases' } } },
+      '@/lib/adminUserSummary': loadModule('src/lib/adminUserSummary.ts'),
+    });
+    const response = await GET();
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    assert.deepEqual(await response.json(), result[0] ?? { totalAccounts: 0, testAccounts: 0, estimatedActiveSubscriptions: 0 });
+  }
+});
+
+test('account overview does not report false zero totals when the database fails', async () => {
+  const { GET } = loadModule('src/app/api/admin/users/summary/route.ts', {
+    '@/lib/db': { connectDB: async () => { throw new Error('private database details'); } },
+    '@/models/User': { User: {} },
+    '@/models/UserPurchase': { UserPurchase: {} },
+    '@/lib/adminUserSummary': loadModule('src/lib/adminUserSummary.ts'),
+  });
+  const response = await GET();
+  assert.equal(response.status, 500);
+  const body = await response.json();
+  assert.equal(body.totalAccounts, undefined);
+  assert.ok(!body.message.includes('private database details'));
+});
+
+test('cached user schemas retain test account updates after hot reload', () => {
+  const mongoose = require('mongoose');
+  const isolated = new mongoose.Mongoose();
+  for (const name of ['User', 'user', 'users']) {
+    isolated.model(name, new isolated.Schema({ name: String }));
+  }
+  loadModule('src/models/User.ts', { mongoose: isolated });
+  for (const name of ['User', 'user', 'users']) {
+    const model = isolated.models[name];
+    for (const value of [true, false]) {
+      const query = model.findByIdAndUpdate('507f1f77bcf86cd799439011', { $set: { isTestAccount: value } });
+      assert.deepEqual(query._castUpdate(query.getUpdate()), { $set: { isTestAccount: value } });
+      const reloaded = model.hydrate({ _id: '507f1f77bcf86cd799439011', isTestAccount: value });
+      assert.equal(reloaded.toJSON().isTestAccount, value);
+    }
+  }
+});
+
+test('test label endpoint rejects a silently discarded update', async () => {
+  const { PATCH } = loadModule('src/app/api/admin/users/[id]/test-account/route.ts', {
+    '@/lib/db': { connectDB: async () => {} },
+    '@/models/User': { User: { findByIdAndUpdate: () => ({ select: async () => ({ isTestAccount: false }) }) } },
+  });
+  const response = await PATCH(new NextRequest('http://localhost/api/admin/users/507f1f77bcf86cd799439011/test-account', { method: 'PATCH', body: JSON.stringify({ isTestAccount: true }) }), { params: Promise.resolve({ id: '507f1f77bcf86cd799439011' }) });
+  assert.equal(response.status, 500);
 });

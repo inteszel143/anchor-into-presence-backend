@@ -5,7 +5,7 @@ import styles from "./AdminHeader.module.css";
 import { useState, useEffect, useRef } from "react";
 import SupportNotification from "./SupportNotification";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/AdminLink";
 import { ChevronDown, LogOut, User, KeyRound } from "lucide-react";
 import { getImageUrl } from "@/lib/getImageUrl";
 import { toast } from "react-toastify";

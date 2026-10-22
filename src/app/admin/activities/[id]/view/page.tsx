@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/AdminLink";
 import { ArrowLeft, CalendarDays, FolderOpen, ImageIcon, Pencil, Video } from "lucide-react";
 import { getActivityImage } from "@/lib/activityMedia";
 import { getImageUrl } from "@/lib/getImageUrl";

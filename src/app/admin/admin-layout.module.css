@@ -1,18 +1,19 @@
 @font-face {
-  font-family: 'Admin Roboto';
-  src: url('/assets/fonts/Roboto-Variable.ttf') format('truetype');
+  font-family: 'Satoshi';
+  src: url('/assets/fonts/Satoshi-Variable.woff2') format('woff2');
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 300 900;
   font-display: swap;
 }
 
 /* Scope typography to admin routes, including dialogs and toast portals. */
 :global(body):has(.theme),
 .theme {
-  --admin-font: 'Admin Roboto', Arial, sans-serif;
+  --admin-font: "Satoshi", Jost, sans-serif;
   --inter-font: var(--admin-font);
   --toastify-font-family: var(--admin-font);
   font-family: var(--admin-font);
+  font-weight: 400;
 }
 
 /* Override the legacy universal Inter rule for every admin text element. */
@@ -26,6 +27,8 @@
 
 .theme {
   /* Warm ivory, stone, and olive from the brand reference. */
+  --admin-active-text: #276749;
+  --admin-active-background: #e6f4ea;
   --admin-text: #4b473f;
   --admin-muted: #787160;
   --admin-border: #e5e0d7;
@@ -105,3 +108,46 @@
 }
 
 .layout :global(.content-wrapper), .layout :global(.main-section) { background: var(--admin-canvas, #f7f5f1); }
+
+/* Keep native dropdown text clear of the arrow across every admin page. */
+.theme select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 10px 42px 10px 14px;
+  line-height: 1.4;
+  border: 1px solid var(--admin-border, #e5e0d7);
+  border-radius: 10px;
+  color: var(--admin-text, #4b473f);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23514c40' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.theme select:not([multiple]):not([size]):focus-visible {
+  outline: 3px solid var(--admin-accent, #92967d);
+  outline-offset: 2px;
+}
+
+.theme select:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+/* Searchable category dropdowns use react-select's own arrow. */
+.theme :global(.activity-select__indicators) { padding-right: 6px; }
+.theme :global(.activity-select__dropdown-indicator) { color: var(--admin-primary, #514c40); }
+
+@media (forced-colors: active) {
+  .theme select:not([multiple]):not([size]) {
+    appearance: auto;
+    -webkit-appearance: auto;
+    background-image: none;
+    padding-right: 14px;
+  }
+}

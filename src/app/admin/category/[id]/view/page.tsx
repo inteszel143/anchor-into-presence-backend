@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/AdminLink";
 import { ArrowLeft, Pencil } from "lucide-react";
 import styles from "../../category-form.module.css";
 import { getImageUrl } from "@/lib/getImageUrl";

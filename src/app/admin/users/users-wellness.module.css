@@ -33,7 +33,7 @@
 .date { white-space: nowrap; color: var(--admin-muted, #787160); }
 .badge { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 30px; white-space: nowrap; }
 .badge > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.active { color: var(--admin-muted, #787160); background: var(--admin-soft, #eeece5); }
+.active { color: var(--admin-active-text, #276749); background: var(--admin-active-background, #e6f4ea); }
 .blocked { color: #944343; background: #fbeeed; }
 .actionsHeading { text-align: right; }
 .actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
@@ -82,7 +82,7 @@
 .table tbody tr:nth-child(3n) .avatar { background: var(--admin-soft, #eeece5); color: var(--admin-muted, #787160); }
 .email { font-size: 12px; }
 .userId { display: inline-block; padding: 5px 8px; background: var(--admin-sidebar, #eeece5); border: 1px solid var(--admin-border, #e5e0d7); border-radius: 6px; }
-.active { background: var(--admin-soft, #eeece5); color: var(--admin-muted, #787160); }
+.active { color: var(--admin-active-text, #276749); background: var(--admin-active-background, #e6f4ea); }
 .blocked { background: #f6e7e1; color: #974d3e; }
 .deleteButton { color: #9a665d; background: transparent; }
 .footer { background: var(--admin-canvas, #f7f5f1); padding-block: 20px; }
@@ -115,3 +115,47 @@
 
 .table tbody tr:nth-child(3n + 2) .avatar { background: #eee7dd; color: #826951; }
 .table tbody tr:nth-child(3n) .avatar { background: #e9e7ed; color: #71637e; }
+
+.testBadge { margin-top: 6px; color: #71603f; background: #f2ead8; }
+.testButton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--admin-border, #e5e0d7); border-radius: 8px; background: var(--admin-surface, #fffdfa); color: var(--admin-text, #4b473f); font-size: 12px; white-space: nowrap; cursor: pointer; }
+.testButton:hover:not(:disabled) { background: var(--admin-soft, #eeece5); }
+
+.testModal { position: fixed; inset: 0; width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; overflow-y: auto; border: 1px solid var(--admin-border, #e5e0d7); border-radius: 24px; background: var(--admin-surface, #fffdfa); color: var(--admin-text, #4b473f); box-shadow: 0 24px 80px #302a2430; }
+.testModal::backdrop { background: #302a2466; backdrop-filter: blur(5px); }
+.modalContent { position: relative; padding: 32px; }
+.modalClose { position: absolute; top: 18px; right: 18px; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--admin-muted, #787160); cursor: pointer; }
+.modalClose:hover:not(:disabled) { background: var(--admin-soft, #eeece5); }
+.modalIcon { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 24px; border-radius: 20px; background: #f2ead8; color: #71603f; }
+.modalEyebrow { margin: 0 0 8px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--admin-muted, #787160); }
+.modalContent h2 { margin: 0 0 12px; font-size: 25px; line-height: 1.25; letter-spacing: -.6px; }
+.modalDescription { margin: 0; font-size: 14px; line-height: 1.7; color: var(--admin-muted, #787160); }
+.modalAccount { display: flex; align-items: center; gap: 12px; margin: 24px 0 16px; padding: 16px; border: 1px solid var(--admin-border, #e5e0d7); border-radius: 14px; background: var(--admin-canvas, #f7f5f1); }
+.modalAccount > div { min-width: 0; }
+.modalAccount strong, .modalAccount span:not(.avatar) { display: block; overflow-wrap: anywhere; }
+.modalAccount strong { font-size: 14px; }
+.modalAccount div > span { margin-top: 4px; color: var(--admin-muted, #787160); font-size: 12px; }
+.modalNote { display: flex; align-items: flex-start; gap: 10px; color: var(--admin-muted, #787160); }
+.modalNote svg { flex-shrink: 0; margin-top: 3px; }
+.modalNote p { margin: 0; font-size: 12px; line-height: 1.7; }
+.modalActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--admin-border, #e5e0d7); }
+.modalCancel, .modalConfirm { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border-radius: 10px; font-size: 13px; cursor: pointer; }
+.modalCancel { background: transparent; border: 1px solid var(--admin-border, #e5e0d7); color: var(--admin-text, #4b473f); }
+.modalCancel:hover:not(:disabled) { background: var(--admin-soft, #eeece5); }
+.modalConfirm { background: var(--admin-primary, #514c40); border: 1px solid var(--admin-primary, #514c40); color: var(--admin-surface, #fffdfa); }
+.modalConfirm:hover:not(:disabled) { background: var(--admin-primary-hover, #403c32); }
+.modalError { margin: 16px 0 0; padding: 12px; border-radius: 8px; background: #f6e7e1; color: #974d3e; font-size: 13px; }
+@media (max-width: 480px) { .modalContent { padding: 24px; } .modalContent h2 { font-size: 22px; } .modalActions { flex-direction: column-reverse; } .modalActions button { width: 100%; } }
+@media (prefers-reduced-motion: no-preference) { .testModal[open] { animation: modalAppear .18s ease-out; } @keyframes modalAppear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } } }
+
+.summarySection { margin-bottom: 24px; }
+.summaryHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.summaryHeading h2 { margin: 0; font-size: 17px; }
+.summaryHeading > span { font-size: 11px; color: var(--admin-muted, #787160); }
+.summaryGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.summaryCard { padding: 22px; border: 1px solid var(--admin-border, #e5e0d7); border-radius: 16px; background: var(--admin-surface, #fffdfa); }
+.summaryCard > span { display: block; font-size: 12px; color: var(--admin-muted, #787160); }
+.summaryCard > strong { display: block; margin: 12px 0; font-size: 32px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.summaryCard p, .summaryNote { margin: 0; font-size: 12px; line-height: 1.7; color: var(--admin-muted, #787160); }
+.testSummaryCard { background: #f5f0e5; }
+.summaryNote { margin-top: 14px; }
+@media (max-width: 768px) { .summaryGrid { grid-template-columns: 1fr; } }

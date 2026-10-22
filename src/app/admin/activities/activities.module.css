@@ -52,10 +52,11 @@
 .name { text-decoration: none; }
 .name:hover { color: var(--admin-text, #4b473f); }
 .userId { display: block; margin-top: 4px; }
-.mediaLink { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; color: var(--admin-text, #4b473f); text-decoration: none; font-size: 13px; }
-.mediaLink:hover { text-decoration: underline; }
+.mediaLink { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 10px; border-radius: 8px; color: #245fa5; background: #edf4fc; text-decoration: underline; text-underline-offset: 3px; font-size: 13px; font-weight: 500; }
+.mediaLink:hover { color: #19477e; background: #dfeafb; }
+.mediaLink:focus-visible { outline: 3px solid #245fa5; outline-offset: 3px; }
 .muted { color: var(--admin-muted, #787160); font-size: 13px; white-space: nowrap; }
-.active { color: var(--admin-muted, #787160); background: var(--admin-soft, #eeece5); }
+.active { color: var(--admin-active-text, #276749); background: var(--admin-active-background, #e6f4ea); }
 .inactive { color: #78534f; background: #f2eeee; }
 .actions { display: flex; justify-content: flex-end; gap: 5px; }
 .actions a, .actions button { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 40px; border-radius: 8px; border: 1px solid transparent; background: var(--admin-surface, #fffdfa); color: var(--admin-muted, #787160); cursor: pointer; }
