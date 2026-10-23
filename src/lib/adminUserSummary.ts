@@ -1,4 +1,5 @@
 import type { PipelineStage } from "mongoose";
+import { SUBSCRIPTION_PLAN_DAYS } from "./adminSubscriptionStatus";
 
 // Purchase-based estimate only: the app does not persist verified renewal,
 // refund, revocation, or sandbox status for every purchase.
@@ -23,7 +24,7 @@ export function adminUserSummaryPipeline(purchaseCollection: string, now: Date):
         { $eq: ["$purchase.planType", "lifetime"] },
         { $and: [
           { $in: ["$purchase.planType", ["monthly", "yearly"]] },
-          { $gte: [{ $add: ["$purchase.purchaseDate", { $cond: [{ $eq: ["$purchase.planType", "monthly"] }, 30 * 86400000, 365 * 86400000] }] }, now] },
+          { $gte: [{ $add: ["$purchase.purchaseDate", { $cond: [{ $eq: ["$purchase.planType", "monthly"] }, SUBSCRIPTION_PLAN_DAYS.monthly * 86400000, SUBSCRIPTION_PLAN_DAYS.yearly * 86400000] }] }, now] },
         ] },
       ] },
     ] } } },

@@ -1,5 +1,7 @@
 import { connectDB } from "@/lib/db";
 import { User } from "@/models/User";
+import { UserPurchase } from "@/models/UserPurchase";
+import { estimateAdminSubscription } from "@/lib/adminSubscriptionStatus";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -39,10 +41,20 @@ export async function GET(req: NextRequest) {
     .select("name email isBlocked isTestAccount createdAt")
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
-    .limit(limit);
+    .limit(limit)
+    .lean();
+
+  // One batch query for this page, using the same latest-purchase rule as totals.
+  const purchases = users.length ? await UserPurchase.aggregate([
+    { $match: { userId: { $in: users.map(user => user._id) } } },
+    { $sort: { purchaseDate: -1, _id: -1 } },
+    { $group: { _id: "$userId", planType: { $first: "$planType" }, purchaseDate: { $first: "$purchaseDate" } } },
+  ]) : [];
+  const byUser = new Map(purchases.map(purchase => [String(purchase._id), purchase]));
+  const now = new Date();
 
   return NextResponse.json({
-    users,
+    users: users.map(user => ({ ...user, subscription: estimateAdminSubscription(byUser.get(String(user._id)), now) })),
     total,
     page,
     totalPages: Math.ceil(total / limit),

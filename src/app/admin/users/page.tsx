@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Search, FlaskConical, Users, X, RefreshCw, L
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import styles from "./users-wellness.module.css";
+import type { AdminSubscription } from "@/lib/adminSubscriptionStatus";
 
 type User = {
   _id: string;
@@ -11,6 +12,7 @@ type User = {
   email: string;
   isBlocked: boolean;
   isTestAccount?: boolean;
+  subscription?: AdminSubscription;
   createdAt: string;
 };
 
@@ -177,7 +179,7 @@ export default function AdminUserListPage() {
       <section className={styles.summarySection} aria-label="Account overview">
         <div className={styles.summaryHeading}><h2>Account overview</h2><span>All accounts · independent of table filters</span></div>
         <div className={styles.summaryGrid}>
-          <div className={styles.summaryCard}><span>Total accounts</span><strong>{summary ? summary.totalAccounts.toLocaleString() : "—"}</strong><p>Includes unverified signups and test accounts. App downloads aren’t tracked here.</p></div>
+          <div className={styles.summaryCard}><span>Registered accounts</span><strong>{summary ? summary.totalAccounts.toLocaleString() : "—"}</strong><p>Includes unverified signups and test accounts. App downloads aren’t tracked here.</p></div>
           <div className={styles.summaryCard}><span>Estimated active subscriptions</span><strong>{summary ? summary.estimatedActiveSubscriptions.toLocaleString() : "—"}</strong><p>Unique accounts with a current recorded plan, excluding marked test accounts.</p></div>
           <div className={`${styles.summaryCard} ${styles.testSummaryCard}`}><span>Marked test accounts</span><strong>{summary ? summary.testAccounts.toLocaleString() : "—"}</strong><p>Accounts manually reviewed and labeled as tests by an admin.</p></div>
         </div>
@@ -187,7 +189,7 @@ export default function AdminUserListPage() {
       <div className={styles.communityNote}><Leaf size={18} aria-hidden="true" /><p>Review accounts before marking them as tests. Test account badges are labels only; account access and data stay unchanged.</p></div>
       <section className={styles.card} aria-label="User management" aria-busy={busy}>
         <div className={styles.directoryHeading}>
-          <div><h2>Community directory</h2><p>Registered accounts and membership details</p></div>
+          <div><h2>Community directory</h2><p>Registration, account access, and subscription estimates in one place</p></div>
           <button type="button" className={styles.refreshButton} disabled={busy} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={15} aria-hidden="true" />Refresh</button>
         </div>
         <div className={styles.filters}>
@@ -207,15 +209,22 @@ export default function AdminUserListPage() {
           : users.length === 0 ? <div className={styles.empty}><Users size={36} aria-hidden="true" /><h2>{filtered ? "No matching users" : "No users yet"}</h2><p>{filtered ? "Try another name, email, or date range." : "Registered accounts will appear here."}</p>{filtered && <button className={styles.textButton} onClick={clearFilters}>Clear filters</button>}</div>
           : <div className={styles.tableScroll} role="region" aria-label="Users table" tabIndex={0}>
             <table className={styles.table}>
-              <thead><tr><th scope="col">User</th><th scope="col">User ID</th><th scope="col">Joined</th><th scope="col">Status</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
+              <thead><tr><th scope="col">User</th><th scope="col">User ID</th><th scope="col">Joined</th><th scope="col">Account access</th><th scope="col">Subscription (estimated)</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
               <tbody>{users.map(user => {
                 const name = user.name?.trim() || "Unnamed user";
                 const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+                const subscription = user.subscription;
+                const subscriptionLabel = subscription?.status === "active" ? (subscription.plan === "lifetime" ? "Lifetime access" : "Active subscription") : subscription?.status === "expired" ? "Expired subscription" : subscription?.status === "none" ? "Registered only" : "Needs review";
                 return <tr key={user._id}>
                   <td><div className={styles.identity}><span className={styles.avatar} aria-hidden="true">{initials}</span><div><span className={styles.name}>{name}</span>{user.isTestAccount && <span className={`${styles.badge} ${styles.testBadge}`}><FlaskConical size={13} aria-hidden="true" />Test account</span>}<span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
                   <td><span className={styles.userId} title={user._id}>#{user._id.slice(-6)}</span></td>
                   <td className={styles.date}>{joinedDate(user.createdAt)}</td>
                   <td><span className={`${styles.badge} ${user.isBlocked ? styles.blocked : styles.active}`}><span aria-hidden="true" />{user.isBlocked ? "Blocked" : "Active"}</span></td>
+                  <td><div className={styles.subscriptionCell}>
+                    <span className={`${styles.badge} ${subscription?.status === "active" ? styles.active : subscription?.status === "expired" ? styles.expiredSubscription : styles.neutralSubscription}`}>{subscriptionLabel}</span>
+                    <span className={styles.subscriptionDetail}>{subscription?.status === "none" ? "No purchase recorded" : subscription?.status === "unknown" || !subscription ? "Subscription could not be determined" : subscription.plan === "lifetime" ? "Lifetime plan · purchase-based estimate" : `${subscription.plan === "monthly" ? "Monthly" : "Yearly"} plan · ${subscription.status === "expired" ? "Estimated end" : "Estimated until"} ${joinedDate(subscription.estimatedExpiresAt || "")}`}</span>
+                    {user.isTestAccount && <span className={styles.subscriptionDetail}>Excluded from subscriber totals</span>}
+                  </div></td>
                   <td><div className={styles.actions}>
                     <button type="button" className={styles.testButton} disabled={pending !== null} onClick={() => { if (user.isTestAccount) void toggleTestAccount(user); else { setLabelError(""); setTestAccount(user); } }} aria-label={`${user.isTestAccount ? "Remove test label from" : "Mark as test account:"} ${name}`}><FlaskConical size={16} aria-hidden="true" />{pending === user._id ? "Saving…" : user.isTestAccount ? "Remove test label" : "Mark as test"}</button>
                   </div></td>

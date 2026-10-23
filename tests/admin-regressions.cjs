@@ -99,8 +99,8 @@ test('activity update reports a deleted record rather than success', async () =>
 
 test('users end-date includes the full day and does not return password fields', async () => {
   let query, selection;
-  const chain = { select: fields => { selection = fields; return chain; }, sort: () => chain, skip: () => chain, limit: async () => [] };
-  const { GET } = loadModule('src/app/api/admin/users/route.ts', { '@/lib/db': { connectDB: async () => {} }, '@/models/User': { User: { countDocuments: async filter => { query = filter; return 0; }, find: () => chain } } });
+  const chain = { select: fields => { selection = fields; return chain; }, sort: () => chain, skip: () => chain, limit: () => chain, lean: async () => [] };
+  const { GET } = loadModule('src/app/api/admin/users/route.ts', { '@/models/UserPurchase': { UserPurchase: {} }, '@/lib/adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts'), '@/lib/db': { connectDB: async () => {} }, '@/models/User': { User: { countDocuments: async filter => { query = filter; return 0; }, find: () => chain } } });
   const response = await GET(new NextRequest('http://localhost/api/admin/users?endDate=2026-10-04'));
   assert.equal(response.status, 200);
   assert.equal(query.createdAt.$lte.toISOString(), '2026-10-04T23:59:59.999Z');
@@ -146,7 +146,7 @@ test('account overview returns totals, including zero for an empty database', as
       '@/lib/db': { connectDB: async () => {} },
       '@/models/User': { User: { aggregate: async () => result } },
       '@/models/UserPurchase': { UserPurchase: { collection: { name: 'user_purchases' } } },
-      '@/lib/adminUserSummary': loadModule('src/lib/adminUserSummary.ts'),
+      '@/lib/adminUserSummary': loadModule('src/lib/adminUserSummary.ts', { './adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts') }),
     });
     const response = await GET();
     assert.equal(response.status, 200);
@@ -160,7 +160,7 @@ test('account overview does not report false zero totals when the database fails
     '@/lib/db': { connectDB: async () => { throw new Error('private database details'); } },
     '@/models/User': { User: {} },
     '@/models/UserPurchase': { UserPurchase: {} },
-    '@/lib/adminUserSummary': loadModule('src/lib/adminUserSummary.ts'),
+    '@/lib/adminUserSummary': loadModule('src/lib/adminUserSummary.ts', { './adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts') }),
   });
   const response = await GET();
   assert.equal(response.status, 500);
@@ -194,4 +194,42 @@ test('test label endpoint rejects a silently discarded update', async () => {
   });
   const response = await PATCH(new NextRequest('http://localhost/api/admin/users/507f1f77bcf86cd799439011/test-account', { method: 'PATCH', body: JSON.stringify({ isTestAccount: true }) }), { params: Promise.resolve({ id: '507f1f77bcf86cd799439011' }) });
   assert.equal(response.status, 500);
+});
+
+test('subscription reporting handles missing records, expiry boundaries, lifetime, and invalid records', () => {
+  const { estimateAdminSubscription: estimate } = loadModule('src/lib/adminSubscriptionStatus.ts');
+  const now = new Date('2026-10-23T12:00:00Z');
+  const day = 86400000;
+  const purchase = (planType, age) => ({ planType, purchaseDate: new Date(now.getTime() - age * day) });
+  assert.equal(estimate(null, now).status, 'none');
+  assert.equal(estimate(purchase('monthly', 29), now).status, 'active');
+  assert.equal(estimate(purchase('monthly', 30), now).status, 'active');
+  assert.equal(estimate(purchase('monthly', 31), now).status, 'expired');
+  assert.equal(estimate(purchase('yearly', 364), now).status, 'active');
+  assert.equal(estimate(purchase('yearly', 366), now).status, 'expired');
+  assert.deepEqual(estimate(purchase('lifetime', 1000), now), { status: 'active', plan: 'lifetime', estimatedExpiresAt: null });
+  for (const item of [purchase('monthly', -1), purchase('invalid', 1), { planType: 'monthly' }, { planType: 'monthly', purchaseDate: 'invalid' }]) {
+    assert.equal(estimate(item, now).status, 'unknown');
+  }
+  assert.equal(estimate(purchase('monthly', 1), now).estimatedExpiresAt, '2026-11-21T12:00:00.000Z');
+});
+
+test('user directory attaches subscription estimates by account without conflating blocked or test flags', async () => {
+  const records = [{ _id: 'one', name: 'Registered user', isBlocked: false }, { _id: 'two', name: 'Test user', isTestAccount: true, isBlocked: true }];
+  const chain = { select: () => chain, sort: () => chain, skip: () => chain, limit: () => chain, lean: async () => records };
+  let pipeline;
+  const { GET } = loadModule('src/app/api/admin/users/route.ts', {
+    '@/lib/db': { connectDB: async () => {} },
+    '@/models/User': { User: { countDocuments: async () => 2, find: () => chain } },
+    '@/models/UserPurchase': { UserPurchase: { aggregate: async stages => { pipeline = stages; return [{ _id: 'two', planType: 'monthly', purchaseDate: new Date() }]; } } },
+    '@/lib/adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts'),
+  });
+  const response = await GET(new NextRequest('http://localhost/api/admin/users'));
+  const data = await response.json();
+  assert.equal(data.users[0].subscription.status, 'none');
+  assert.equal(data.users[1].subscription.status, 'active');
+  assert.equal(data.users[1].isTestAccount, true);
+  assert.equal(data.users[1].isBlocked, true);
+  assert.deepEqual(pipeline[0].$match.userId.$in, ['one', 'two']);
+  assert.equal(data.total, 2);
 });

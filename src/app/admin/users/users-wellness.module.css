@@ -159,3 +159,8 @@
 .testSummaryCard { background: #f5f0e5; }
 .summaryNote { margin-top: 14px; }
 @media (max-width: 768px) { .summaryGrid { grid-template-columns: 1fr; } }
+
+.subscriptionCell { min-width: 190px; }
+.subscriptionDetail { display: block; margin-top: 6px; font-size: 11px; line-height: 1.6; color: var(--admin-muted, #787160); }
+.neutralSubscription { color: var(--admin-muted, #787160); background: var(--admin-soft, #eeece5); }
+.expiredSubscription { color: #855a2b; background: #f5ebdc; }
