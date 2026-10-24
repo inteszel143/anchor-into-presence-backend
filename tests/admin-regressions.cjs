@@ -100,7 +100,7 @@ test('activity update reports a deleted record rather than success', async () =>
 test('users end-date includes the full day and does not return password fields', async () => {
   let query, selection;
   const chain = { select: fields => { selection = fields; return chain; }, sort: () => chain, skip: () => chain, limit: () => chain, lean: async () => [] };
-  const { GET } = loadModule('src/app/api/admin/users/route.ts', { '@/models/UserPurchase': { UserPurchase: {} }, '@/lib/adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts'), '@/lib/db': { connectDB: async () => {} }, '@/models/User': { User: { countDocuments: async filter => { query = filter; return 0; }, find: () => chain } } });
+  const { GET } = loadModule('src/app/api/admin/users/route.ts', { '@/models/UserPurchase': { UserPurchase: {} }, '@/lib/adminUserSummary': {}, '@/lib/adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts'), '@/lib/db': { connectDB: async () => {} }, '@/models/User': { User: { countDocuments: async filter => { query = filter; return 0; }, find: () => chain } } });
   const response = await GET(new NextRequest('http://localhost/api/admin/users?endDate=2026-10-04'));
   assert.equal(response.status, 200);
   assert.equal(query.createdAt.$lte.toISOString(), '2026-10-04T23:59:59.999Z');
@@ -222,7 +222,7 @@ test('user directory attaches subscription estimates by account without conflati
     '@/lib/db': { connectDB: async () => {} },
     '@/models/User': { User: { countDocuments: async () => 2, find: () => chain } },
     '@/models/UserPurchase': { UserPurchase: { aggregate: async stages => { pipeline = stages; return [{ _id: 'two', planType: 'monthly', purchaseDate: new Date() }]; } } },
-    '@/lib/adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts'),
+    '@/lib/adminUserSummary': {}, '@/lib/adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts'),
   });
   const response = await GET(new NextRequest('http://localhost/api/admin/users'));
   const data = await response.json();
@@ -232,4 +232,60 @@ test('user directory attaches subscription estimates by account without conflati
   assert.equal(data.users[1].isBlocked, true);
   assert.deepEqual(pipeline[0].$match.userId.$in, ['one', 'two']);
   assert.equal(data.total, 2);
+});
+
+test('active user filter applies before pagination and uses the overview subscription estimate', async () => {
+  const status = loadModule('src/lib/adminSubscriptionStatus.ts');
+  const summary = loadModule('src/lib/adminUserSummary.ts', { './adminSubscriptionStatus': status });
+  let pipeline;
+  const { GET } = loadModule('src/app/api/admin/users/route.ts', {
+    '@/lib/db': { connectDB: async () => {} },
+    '@/models/User': { User: { aggregate: async stages => {
+      pipeline = stages;
+      return [{ users: [{ _id: 'subscriber', name: 'Member', purchase: { planType: 'lifetime', purchaseDate: new Date('2025-01-01') } }], count: [{ total: 21 }] }];
+    } } },
+    '@/models/UserPurchase': { UserPurchase: { collection: { name: 'purchases' } } },
+    '@/lib/adminSubscriptionStatus': status,
+    '@/lib/adminUserSummary': summary,
+  });
+  const response = await GET(new NextRequest('http://localhost/api/admin/users?accountType=active&page=2&limit=10&search=Member&endDate=2026-10-24'));
+  const data = await response.json();
+  assert.deepEqual(pipeline[0].$match.isTestAccount, { $ne: true });
+  assert.equal(pipeline[0].$match.$or[0].name.$regex, 'Member');
+  assert.equal(pipeline[0].$match.createdAt.$lte.toISOString(), '2026-10-24T23:59:59.999Z');
+  const now = pipeline[3].$set.estimatedActive.$and[1].$lte[1];
+  assert.deepEqual(pipeline.slice(1, 4), summary.adminUserSubscriptionPipeline('purchases', now));
+  assert.deepEqual(pipeline[4], { $match: { estimatedActive: true } });
+  assert.deepEqual(pipeline[5].$facet.users.slice(1, 3), [{ $skip: 10 }, { $limit: 10 }]);
+  assert.deepEqual(pipeline[5].$facet.count, [{ $count: 'total' }]);
+  assert.equal(data.total, 21);
+  assert.equal(data.totalPages, 3);
+  assert.equal(data.page, 2);
+  assert.equal(data.users[0]._id, 'subscriber');
+  assert.equal(data.users[0].subscription.status, 'active');
+  assert.equal(data.users[0].purchase, undefined);
+});
+
+test('test and registered filters constrain counts and rows consistently; invalid types are rejected', async () => {
+  for (const accountType of ['test', 'registered', 'invalid']) {
+    let countQuery, rowsQuery;
+    const chain = { select: () => chain, sort: () => chain, skip: () => chain, limit: () => chain, lean: async () => [] };
+    const { GET } = loadModule('src/app/api/admin/users/route.ts', {
+      '@/lib/db': { connectDB: async () => {} },
+      '@/models/User': { User: { countDocuments: async query => { countQuery = query; return 0; }, find: query => { rowsQuery = query; return chain; } } },
+      '@/models/UserPurchase': { UserPurchase: {} },
+      '@/lib/adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts'),
+      '@/lib/adminUserSummary': {},
+    });
+    const response = await GET(new NextRequest(`http://localhost/api/admin/users?accountType=${accountType}`));
+    if (accountType === 'invalid') {
+      assert.equal(response.status, 400);
+      assert.equal(rowsQuery, undefined);
+    } else {
+      assert.equal(response.status, 200);
+      assert.deepEqual(countQuery, accountType === 'test' ? { isTestAccount: true } : {});
+      assert.deepEqual(rowsQuery, countQuery);
+      assert.equal((await response.json()).total, 0);
+    }
+  }
 });

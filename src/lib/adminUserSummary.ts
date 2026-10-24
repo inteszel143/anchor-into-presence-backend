@@ -3,7 +3,7 @@ import { SUBSCRIPTION_PLAN_DAYS } from "./adminSubscriptionStatus";
 
 // Purchase-based estimate only: the app does not persist verified renewal,
 // refund, revocation, or sandbox status for every purchase.
-export function adminUserSummaryPipeline(purchaseCollection: string, now: Date): PipelineStage[] {
+export function adminUserSubscriptionPipeline(purchaseCollection: string, now: Date): PipelineStage[] {
   return [
     { $lookup: {
       from: purchaseCollection,
@@ -28,6 +28,12 @@ export function adminUserSummaryPipeline(purchaseCollection: string, now: Date):
         ] },
       ] },
     ] } } },
+  ];
+}
+
+export function adminUserSummaryPipeline(purchaseCollection: string, now: Date): PipelineStage[] {
+  return [
+    ...adminUserSubscriptionPipeline(purchaseCollection, now),
     { $group: {
       _id: null,
       totalAccounts: { $sum: 1 },

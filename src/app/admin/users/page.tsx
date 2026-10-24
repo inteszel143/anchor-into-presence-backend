@@ -6,6 +6,13 @@ import { toast } from "react-toastify";
 import styles from "./users-wellness.module.css";
 import type { AdminSubscription } from "@/lib/adminSubscriptionStatus";
 
+const accountTypes = {
+  registered: "Registered users (all accounts)",
+  active: "Active subscriptions (estimated)",
+  test: "Test accounts",
+};
+type AccountType = keyof typeof accountTypes;
+
 type User = {
   _id: string;
   name: string;
@@ -26,6 +33,7 @@ export default function AdminUserListPage() {
   const [summaryError, setSummaryError] = useState("");
   const [summaryRefresh, setSummaryRefresh] = useState(0);
   const [users, setUsers] = useState<User[]>([]);
+  const [accountType, setAccountType] = useState<AccountType>("registered");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -90,7 +98,7 @@ export default function AdminUserListPage() {
     setError("");
     async function loadUsers() {
       try {
-        const params = new URLSearchParams({ search: query, startDate, endDate, page: String(page), limit: String(limit) });
+        const params = new URLSearchParams({ search: query, accountType, startDate, endDate, page: String(page), limit: String(limit) });
         const res = await fetch(`/api/admin/users?${params}`, { signal: controller.signal });
         if (!res.ok) throw new Error("We couldn’t load users. Please try again.");
         const data = await res.json();
@@ -108,7 +116,7 @@ export default function AdminUserListPage() {
     }
     loadUsers();
     return () => controller.abort();
-  }, [query, startDate, endDate, page, limit, refresh]);
+  }, [query, accountType, startDate, endDate, page, limit, refresh]);
 
   async function toggleTestAccount(user: User) {
     if (pending) return;
@@ -131,7 +139,7 @@ export default function AdminUserListPage() {
       toast.success(saved.isTestAccount ? "Marked as a test account" : "Test account label removed");
       setUsers(current => current.map(item => item._id === user._id ? { ...item, isTestAccount: saved.isTestAccount } : item));
       setTestAccount(null);
-      setSummaryRefresh(value => value + 1);
+      setRefresh(value => value + 1);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Couldn’t update this user.";
       if (testAccount) setLabelError(message);
@@ -140,10 +148,10 @@ export default function AdminUserListPage() {
   }
 
   function clearFilters() {
-    setSearch(""); setQuery(""); setStartDate(""); setEndDate(""); setPage(1);
+    setAccountType("registered"); setSearch(""); setQuery(""); setStartDate(""); setEndDate(""); setPage(1);
   }
 
-  const filtered = Boolean(search || startDate || endDate);
+  const filtered = Boolean(accountType !== "registered" || search || startDate || endDate);
   const busy = loading || search !== query;
   const first = total ? (page - 1) * limit + 1 : 0;
   const last = Math.min(page * limit, total);
@@ -196,6 +204,11 @@ export default function AdminUserListPage() {
           <label className={styles.searchLabel} htmlFor="user-search">Search users
             <span className={styles.searchField}><Search size={18} aria-hidden="true" /><input id="user-search" type="search" placeholder="Search by name or email" value={search} onChange={event => setSearch(event.target.value)} /></span>
           </label>
+          <label htmlFor="user-account-type">Account type
+            <select id="user-account-type" value={accountType} onChange={event => { setAccountType(event.target.value as AccountType); setPage(1); }}>
+              {Object.entries(accountTypes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
           <div className={styles.dateFilters}>
             <label htmlFor="user-start-date">Joined from<input id="user-start-date" type="date" value={startDate} max={endDate || undefined} onChange={event => { setStartDate(event.target.value); setPage(1); }} /></label>
             <label htmlFor="user-end-date">Joined to<input id="user-end-date" type="date" value={endDate} min={startDate || undefined} onChange={event => { setEndDate(event.target.value); setPage(1); }} /></label>
@@ -203,10 +216,10 @@ export default function AdminUserListPage() {
           {filtered && <button className={styles.clearButton} type="button" onClick={clearFilters}><X size={15} aria-hidden="true" />Clear filters</button>}
         </div>
 
-        {filtered && <div className={styles.filterSummary} aria-live="polite"><span>Filtered view</span>{search && <span className={styles.filterChip}>Search: {search}</span>}{startDate && <span className={styles.filterChip}>From {startDate}</span>}{endDate && <span className={styles.filterChip}>To {endDate}</span>}</div>}
+        {filtered && <div className={styles.filterSummary} aria-live="polite"><span>Filtered view</span>{accountType !== "registered" && <span className={styles.filterChip}>{accountTypes[accountType]}</span>}{search && <span className={styles.filterChip}>Search: {search}</span>}{startDate && <span className={styles.filterChip}>From {startDate}</span>}{endDate && <span className={styles.filterChip}>To {endDate}</span>}</div>}
         {error ? <div className={styles.empty} role="alert"><Users size={32} aria-hidden="true" /><h2>Users couldn’t load</h2><p>{error}</p><button className={styles.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div>
           : busy ? <div className={styles.empty} role="status"><span className={styles.loadingDot} />Loading users…</div>
-          : users.length === 0 ? <div className={styles.empty}><Users size={36} aria-hidden="true" /><h2>{filtered ? "No matching users" : "No users yet"}</h2><p>{filtered ? "Try another name, email, or date range." : "Registered accounts will appear here."}</p>{filtered && <button className={styles.textButton} onClick={clearFilters}>Clear filters</button>}</div>
+          : users.length === 0 ? <div className={styles.empty}><Users size={36} aria-hidden="true" /><h2>{filtered ? "No matching users" : "No users yet"}</h2><p>{filtered ? "Try another account type, name, email, or date range." : "Registered accounts will appear here."}</p>{filtered && <button className={styles.textButton} onClick={clearFilters}>Clear filters</button>}</div>
           : <div className={styles.tableScroll} role="region" aria-label="Users table" tabIndex={0}>
             <table className={styles.table}>
               <thead><tr><th scope="col">User</th><th scope="col">User ID</th><th scope="col">Joined</th><th scope="col">Account access</th><th scope="col">Subscription (estimated)</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
