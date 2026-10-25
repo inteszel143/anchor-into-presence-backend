@@ -57,5 +57,5 @@ export default function ScrollReveal({ children, className }: { children: ReactN
     };
   }, []);
 
-  return <div ref={root} className={className}>{children}</div>;
+  return <div ref={root} className={className} data-public-page>{children}</div>;
 }

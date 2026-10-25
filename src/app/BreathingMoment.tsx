@@ -14,8 +14,8 @@ export default function BreathingMoment() {
   }, [active]);
   const breatheIn = step % 2 === 0;
   return <div className={styles.breathing}>
-    <span className={styles.breathingOverline}>A MOMENT OF PRESENCE</span>
-    <div className={`${styles.breathCircle} ${active && breatheIn ? styles.inhale : ""}`}><span aria-live="polite">{active ? breatheIn ? "Breathe in" : "Breathe out" : "Just breathe."}</span><small>{active ? "Slowly, gently, at your own pace" : "You’re right where you need to be."}</small></div>
-    <button type="button" aria-pressed={active} onClick={() => { setStep(0); setActive(value => !value); }}>{active ? <Pause size={14} /> : <Play size={14} />} {active ? "Pause this moment" : "Take a breathing moment"}</button>
+    <span className={styles.breathingOverline}>FOLLOW YOUR BREATH</span>
+    <div className={`${styles.breathCircle} ${active ? breatheIn ? styles.inhale : styles.exhale : ""}`}><span aria-live="polite">{active ? breatheIn ? "Breathe in" : "Breathe out" : "Just breathe."}</span><small>{active ? "Slowly, gently, at your own pace" : "A little space. Just for you."}</small></div>
+    <button type="button" aria-pressed={active} onClick={() => { setStep(0); setActive(value => !value); }}>{active ? <Pause size={14} /> : <Play size={14} />} {active ? "Pause this moment" : "Try a breathing moment"}</button>
   </div>;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import ThemeToggle from "@/components/ThemeToggle";
 import ScrollReveal from "@/components/ScrollReveal";
 import { useRef, useState } from "react";
 import Image from "next/image";
@@ -51,7 +52,7 @@ export default function SupportPage() {
       <header className={landing.header}>
         <Link href="/" className={landing.brand} aria-label="Anchor Into Presence home"><Image src="/assets/images/anchor-into-presence-logo.png" width={42} height={42} alt="" priority /><span>Anchor Into<span>Presence</span></span></Link>
         <nav aria-label="Main navigation"><Link href="/">Home</Link><Link href="/#experience">The experience</Link><Link href="/#pricing">Pricing</Link><Link href="/web/support" className={landing.navHome} aria-current="page">Support</Link></nav>
-        <div className={landing.headerActions}><Link href="/admin/login" className={landing.headerLogin}>Admin sign in</Link><Link href="/#begin" className={landing.headerCta}>Get started <ArrowRight size={16} /></Link></div>
+        <div className={landing.headerActions}><ThemeToggle /><Link href="/admin/login" className={landing.headerLogin}>Admin sign in</Link><Link href="/#begin" className={landing.headerCta}>Get started <ArrowRight size={16} /></Link></div>
       </header>
       <main id="support-main" className={styles.main}>
         <Link href="/" className={styles.back}><ArrowLeft size={15} /> Back to your moment</Link>

@@ -1,4 +1,5 @@
 import LandingNavigation from "@/components/LandingNavigation";
+import ThemeToggle from "@/components/ThemeToggle";
 import ScrollReveal from "@/components/ScrollReveal";
 import Image from "next/image";
 import Link from "next/link";
@@ -55,23 +56,20 @@ export default function LandingPage() {
       <header className={styles.header}>
         <Link href="/" className={styles.brand} aria-label="Anchor Into Presence home"><Image src="/assets/images/anchor-into-presence-logo.png" width={42} height={42} alt="" priority /><span>Anchor Into<span>Presence</span></span></Link>
         <LandingNavigation />
-        <div className={styles.headerActions}><Link href="/admin/login" className={styles.headerLogin}>Admin sign in</Link><a href="#begin" className={styles.headerCta}>Get started <ArrowRight size={16} /></a></div>
+        <div className={styles.headerActions}><ThemeToggle /><Link href="/admin/login" className={styles.headerLogin}>Admin sign in</Link><a href="#begin" className={styles.headerCta}>Get started <ArrowRight size={16} /></a></div>
       </header>
       <main id="main">
         <section className={styles.hero} aria-labelledby="hero-heading">
           <div className={styles.heroCopy} data-reveal="left">
-            <span className={styles.eyebrow}><span /> A LITTLE MORE HERE. A LITTLE MORE YOU.</span>
-            <h1 id="hero-heading">Come back<br />to <em>this moment.</em></h1>
-            <p>A softer place to land in a busy world. Make space for stillness, connect with yourself, and bring a little more presence into every day.</p>
-            <div className={styles.heroActions}><a href="#pricing" className={styles.primary}>Begin your journey <ArrowRight size={18} /></a><a href="#experience" className={styles.textLink}>Explore the experience <ArrowDown size={16} /></a></div>
-            <div className={styles.heroNote}><Flower2 size={20} /> No perfect practice. Just a place to begin.</div>
+            <span className={styles.eyebrow}><span /> YOUR DAILY SPACE FOR WELLBEING</span>
+            <h1 id="hero-heading">Find your balance.<br />One moment<br />at a time.</h1>
+            <p>Make a little space for yourself with guided practices, quiet reflection, and a community to grow with. Your daily return to presence starts here.</p>
+            <div className={styles.heroActions}><a href="#pricing" className={styles.primary}>Start your journey <ArrowRight size={18} /></a><a href="#experience" className={styles.textLink}>Explore the experience <ArrowDown size={16} /></a></div>
+
+            <div className={styles.heroPathways} aria-label="Explore your practice"><strong>Find your moment</strong><a href="#experience"><Wind size={14} /> Breathe</a><a href="#experience"><Leaf size={14} /> Reflect</a><a href="#experience"><Heart size={14} /> Connect</a></div>
           </div>
-          <div className={styles.heroArt} data-reveal="right" data-reveal-delay="120">
-            <div className={styles.artLabel}><Sparkles size={15} /> YOUR DAILY RETURN TO YOURSELF</div>
-            <Image className={styles.mandala} src="/assets/images/landing/mandala.png" width={560} height={560} alt="" priority />
-            <BreathingMoment />
-            <span className={styles.artFooter}>Let the world wait a little.</span>
-            <div className={styles.floatingNote}><Sun size={25} /><div>A moment for you<small>Right here. Right now.</small></div></div>
+          <div className={styles.heroPhoto} data-reveal="right" data-reveal-delay="120">
+            <Image src="/assets/images/landing/wellness-hero.png" alt="A woman taking a quiet moment in a seated yoga stretch on a sage mat" width={1226} height={1283} sizes="(max-width: 680px) 100vw, 55vw" priority />
           </div>
         </section>
         <div className={styles.ribbon}><span><Wind size={18} /> Breathe a little deeper</span><span><Flower2 size={18} /> Feel a little more grounded</span><span><Sun size={18} /> Be a little more present</span></div>
@@ -79,6 +77,10 @@ export default function LandingPage() {
           <div className={styles.sectionHeading} data-reveal="up"><span className={styles.eyebrow}>PRESENCE, IN YOUR EVERYDAY</span><h2>Small moments.<br /><em>A more connected you.</em></h2><p>You don’t need to change your whole day.<br />Just find a little room within it.</p></div>
           <div className={styles.benefits}>{benefits.map(({ icon: Icon, title, description }, index) => <article key={title} data-reveal={index === 0 ? "left" : index === 2 ? "right" : "up"} data-reveal-delay={index * 100}><span className={styles.featureNumber}>0{index + 1}</span><div className={styles.featureIcon}><Icon size={28} strokeWidth={1.25} /></div><h3>{title}</h3><p>{description}</p></article>)}</div>
         </section>
+        <details className={styles.breathingPreview}>
+          <summary><span><Wind size={20} /> A moment to try, right here.</span><span>Open breathing practice <ArrowDown size={16} /></span></summary>
+          <div className={styles.breathingPreviewBody}><p>Let everything else wait. Follow a gentle breath at your own pace.</p><div className={styles.heroArt}><BreathingMoment /></div></div>
+        </details>
         <section className={styles.practice} data-reveal><div className={styles.practiceMark}><Flower2 size={85} strokeWidth={.7} /></div><div><span className={styles.eyebrow}>YOUR PRACTICE. YOUR PACE.</span><h2>Not another thing to do.<br /><em>A moment just to be.</em></h2></div><p>From exploring the library to reflecting on your progress, Anchor Into Presence brings your practice together in one gentle space.</p></section>
         <section id="pricing" className={styles.pricing}>
           <div className={styles.sectionHeading} data-reveal="up"><span className={styles.eyebrow}>INVEST IN YOUR INNER SPACE</span><h2>A little commitment.<br /><em>Room for possibility.</em></h2><p>One space for your practice. Choose the rhythm that fits your life.</p></div>
