@@ -4,24 +4,23 @@ const mailHost = process.env.MAIL_HOST
 const mailPort = Number(process.env.MAIL_PORT || 587)
 const mailPassword = process.env.MAIL_PASSWORD
 
-if (!mailHost) {
-  throw new Error('MAIL_HOST is not configured')
-}
-
-if (!mailPassword) {
-  throw new Error('MAIL_PASSWORD is not configured')
-}
-
-const createTransporter = () =>
-  nodemailer.createTransport({
+const createTransporter = () => {
+  if (!mailHost || !mailPassword) {
+    throw new Error('Email delivery is not configured')
+  }
+  return nodemailer.createTransport({
     host: mailHost,
     port: mailPort,
-    secure: false,
+    secure: mailPort === 465,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     auth: {
       user: 'apikey',
       pass: mailPassword,
     },
   })
+}
 
 const FROM = `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_FROM_ADDRESS}>`
 

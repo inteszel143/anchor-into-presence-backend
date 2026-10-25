@@ -5,50 +5,66 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
-  await connectDB();
-  const { name, email, password } = await req.json();
-  if (!email || !password) {
-    return NextResponse.json(
-      { message: "All fields required" },
-      { status: 400 }
-    );
-  }
+  try {
+    await connectDB();
+    const { name, email, password } = await req.json();
+    if (!email || !password) {
+      return NextResponse.json(
+        { message: "All fields required" },
+        { status: 400 }
+      );
+    }
 
-  const existing = await User.findOne({ email });
-  if (existing && existing.isVerified) {
-    return NextResponse.json(
-      { message: "Email already registered" },
-      { status: 409 }
-    );
-  }
+    const existing = await User.findOne({ email });
+    if (existing && existing.isVerified) {
+      return NextResponse.json(
+        { message: "Email already registered" },
+        { status: 409 }
+      );
+    }
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-  if (existing) {
-    // Update existing unverified user
-    existing.name = name;
-    existing.password = hashedPassword;
-    existing.otp = otp;
-    existing.otpExpiresAt = otpExpiresAt;
-    await existing.save();
-  } else {
-    await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      otp,
-      otpExpiresAt,
+    if (existing) {
+      // Update existing unverified user
+      existing.name = name;
+      existing.password = hashedPassword;
+      existing.otp = otp;
+      existing.otpExpiresAt = otpExpiresAt;
+      await existing.save();
+    } else {
+      await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        otp,
+        otpExpiresAt,
+      });
+    }
+
+    try {
+      await sendOtpEmail(email, otp);
+    } catch {
+      console.error("Registration verification email delivery failed");
+      return NextResponse.json({
+        status: false,
+        message: "We couldn’t send your verification email. Please try creating your account again shortly.",
+      }, { status: 503 });
+    }
+
+    return NextResponse.json({
+      message: "OTP sent to email",
+      status: true,
+      data: {},
     });
+  } catch {
+    console.error("Registration failed before email delivery");
+    return NextResponse.json({
+      status: false,
+      message: "Account creation is temporarily unavailable. Please try again later.",
+    }, { status: 500 });
   }
-
-  await sendOtpEmail(email, otp);
-
-  return NextResponse.json({
-    message: "OTP sent to email",
-    status: true,
-    data: {},
-  });
 }

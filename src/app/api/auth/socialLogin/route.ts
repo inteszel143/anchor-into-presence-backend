@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
 
       const response = NextResponse.json({
         message: "Social login successful!",
+        isFirst: false,
         data: {
           name: existingUser.name, 
           email: existingUser.email,
@@ -110,6 +111,7 @@ export async function POST(req: NextRequest) {
 
       const response = NextResponse.json({
         message: "Social login successful!",
+        isFirst: true,
         data: {
           name: newUser.name, 
           email: newUser.email,

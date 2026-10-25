@@ -75,3 +75,10 @@ for (const fcmToken of [undefined, null, '']) {
     assert.equal(newAccount.writes[0].provider, 'apple');
   });
 }
+
+test('only newly created social accounts receive the first-sign-in flag', async () => {
+  const newAccount = await route(null).post(identity);
+  assert.equal(newAccount.body.isFirst, true);
+  const existing = await route({ _id: 'existing', provider: 'google', email: identity.email }).post(identity);
+  assert.equal(existing.body.isFirst, false);
+});

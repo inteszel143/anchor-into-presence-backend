@@ -36,7 +36,11 @@ test('Track returns authenticated recent completions without server-day cutoff',
  assert.equal(body.data.completedActivities[0].name,'Evening calm');
  assert.equal(String(completionPipeline[0].$match.userId),userId);
  assert.equal(completionPipeline[0].$match.createdAt,undefined);
- assert.equal(completionPipeline[2].$limit,20);
+ assert.equal(completionPipeline[2].$group._id,'$activityId');
+ assert.equal(completionPipeline[2].$group.latest.$first,'$$ROOT');
+ assert.equal(completionPipeline[3].$replaceRoot.newRoot,'$latest');
+ assert.equal(completionPipeline[4].$sort.createdAt,-1);
+ assert.equal(completionPipeline[5].$limit,20);
  assert.equal(completionPipeline[1].$sort.createdAt,-1);
- assert.equal(completionPipeline[4].$unwind.preserveNullAndEmptyArrays,true);
+ assert.equal(completionPipeline[7].$unwind.preserveNullAndEmptyArrays,true);
 });

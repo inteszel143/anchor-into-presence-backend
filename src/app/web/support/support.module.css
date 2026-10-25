@@ -1,0 +1,42 @@
+.page { min-height: 100vh; }
+.main { max-width: 1160px; margin: 0 auto; padding: 12px 40px 80px; }
+.back { display: inline-flex; align-items: center; gap: 8px; color: var(--muted) !important; font-size: 12px; margin-bottom: 40px; }
+.back:hover { color: var(--primary) !important; }
+.grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 80px; align-items: start; }
+.intro { padding-top: 30px; }
+.intro h1 { font-size: clamp(48px, 5.5vw, 70px); font-weight: 400; letter-spacing: -2.8px; line-height: 1.08; margin: 22px 0 25px; }
+.intro > p { font-size: 15px; color: var(--muted); line-height: 1.9; max-width: 375px; }
+.helpCard { display: flex; align-items: flex-start; gap: 16px; background: #eceee3; border: 1px solid #e1e4d7; border-radius: 18px; padding: 24px; margin-top: 38px; }
+.helpCard > svg { flex-shrink: 0; color: var(--primary); margin-top: 2px; }
+.helpCard h2 { font-size: 15px; letter-spacing: -.2px; font-weight: 600; margin: 0 0 9px; }
+.helpCard p { font-size: 12px; line-height: 1.8; color: var(--muted); }
+.helpCard a { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; margin-top: 16px; }
+.helpCard a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.smallPrint { display: flex; align-items: center; gap: 12px; margin-top: 32px; color: var(--muted); font-size: 11px; }
+.formCard { background: #fffefa; border: 1px solid #dfe2d5; border-radius: 24px; padding: 36px; box-shadow: 0 15px 45px var(--soft-shadow); }
+.formHeading { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; }
+.icon { width: 48px; height: 48px; display: grid; place-items: center; background: #edf1e5; border-radius: 15px; color: var(--primary); }
+.formHeading h2 { font-size: 28px; letter-spacing: -.8px; margin: 0 0 5px; }
+.formHeading p { color: var(--muted); font-size: 12px; }
+.field { display: flex; flex-direction: column; gap: 9px; margin-bottom: 22px; }
+.field label { font-size: 12px; font-weight: 600; }
+.field input, .field textarea { width: 100%; border: 1px solid #dce0d2; border-radius: 11px; padding: 13px 15px; background: #fafbf7; color: var(--ink); font-size: 14px; line-height: 1.6; transition: border-color .2s, box-shadow .2s; }
+.field input::placeholder, .field textarea::placeholder { color: #7b7e70; opacity: 1; }
+.field input:focus, .field textarea:focus { outline: 2px solid #7c8566; outline-offset: 2px; border-color: #7c8566; background: #fffefa; }
+.field textarea { resize: vertical; min-height: 150px; }
+.field small { font-size: 10px; color: var(--muted); }
+.submit { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 15px 20px; border: 0; border-radius: 30px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+.submit:hover:not(:disabled) { background: var(--primary-hover); }
+.submit:disabled { opacity: .65; cursor: wait; }
+.privacy { margin-top: 16px !important; font-size: 10px; line-height: 1.8; color: var(--muted); text-align: center; }
+.privacy svg { vertical-align: middle; margin-right: 4px; }
+.privacy a { text-decoration: underline; text-underline-offset: 3px; }
+.feedback { display: flex; align-items: flex-start; gap: 10px; padding: 14px; border-radius: 10px; margin-bottom: 20px; font-size: 12px; line-height: 1.8; }
+.feedback svg { flex-shrink: 0; margin-top: 3px; }
+.success { background: #edf1e5; color: #435735; border: 1px solid #cbd7bd; }
+.error { background: #fbefea; color: #813f2f; border: 1px solid #e3c7bc; }
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 950px) { .grid { gap: 35px; }.formCard { padding: 28px; } }
+@media (max-width: 680px) { .main { padding: 0 24px 45px; }.back { margin-bottom: 25px; }.grid { grid-template-columns: 1fr; gap: 32px; }.intro { padding-top: 0; }.intro h1 { font-size: 52px; }.intro > p { max-width: none; font-size: 14px; }.helpCard { margin-top: 25px; padding: 20px; }.smallPrint { display: none; }.formCard { padding: 24px 20px; border-radius: 18px; }.field input, .field textarea { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; }.field input, .field textarea { transition: none; } }

@@ -12,6 +12,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  if (pathname === "/admin") return <>{children}</>;
   const showSidebar = pathname !== "/admin/login";
 
   if (!showSidebar) {

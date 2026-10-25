@@ -208,6 +208,10 @@ export async function GET(req: NextRequest) {
     const completedActivities = await UserActivityLogs.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(userId as string), isCompleted: true } },
       { $sort: { createdAt: -1, _id: -1 } },
+      // Keep the latest completion per meditation before limiting the list.
+      { $group: { _id: "$activityId", latest: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$latest" } },
+      { $sort: { createdAt: -1, _id: -1 } },
       { $limit: 20 },
       { $lookup: { from: "activities", localField: "activityId", foreignField: "_id", as: "activity" } },
       { $unwind: { path: "$activity", preserveNullAndEmptyArrays: true } },

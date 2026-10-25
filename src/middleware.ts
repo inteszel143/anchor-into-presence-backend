@@ -8,6 +8,7 @@ export async function middleware(req: NextRequest) {
 
   // Allow public access to auth routes
   if (
+    url === '/admin' ||
     url === '/admin/login' ||
     url === '/api/admin/login' ||
     url === '/api/admin/logout' ||

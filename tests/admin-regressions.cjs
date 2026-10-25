@@ -43,7 +43,7 @@ test('admin authentication rejects missing, invalid, expired, and non-admin cook
     }
     const authorized = await middleware(new NextRequest('http://localhost/api/admin/users', { headers: { cookie: `admin_session=${await token('admin')}` } }));
     assert.equal(authorized.headers.get('x-middleware-next'), '1');
-    for (const endpoint of ['/api/admin/login', '/api/admin/logout']) {
+    for (const endpoint of ['/admin', '/api/admin/login', '/api/admin/logout']) {
       const response = await middleware(new NextRequest(`http://localhost${endpoint}`));
       assert.equal(response.headers.get('x-middleware-next'), '1');
     }
