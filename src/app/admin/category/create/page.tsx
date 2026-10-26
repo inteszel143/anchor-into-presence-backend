@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAdminNavigation } from "@/components/AdminNavigationProvider";
 import Link from "@/components/AdminLink";
 import { ArrowLeft, FolderOpen } from "lucide-react";
 import styles from "../category-form.module.css";
@@ -12,7 +12,7 @@ export default function CreateActivityPage() {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const router = useRouter();
+  const navigate = useAdminNavigation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +36,7 @@ export default function CreateActivityPage() {
 
     if (res.ok) {
       toast.success("Category created successfully");
-      router.push("/admin/category"); // Redirect to list page
+      navigate("/admin/category", {}); // Redirect to list page
     } else {
       const data = await res.json();
       toast.error(

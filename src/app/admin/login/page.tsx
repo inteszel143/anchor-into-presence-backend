@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useAdminNavigation } from "@/components/AdminNavigationProvider";
 import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import styles from "./login.module.css";
 
@@ -16,7 +16,7 @@ export default function AdminLoginPage() {
   const submitting = useRef(false);
   const emailInput = useRef<HTMLInputElement>(null);
   const passwordInput = useRef<HTMLInputElement>(null);
-  const router = useRouter();
+  const navigate = useAdminNavigation();
 
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
       localStorage.setItem("name", data.admin.name ?? "");
       localStorage.setItem("email", data.admin.email ?? "");
       localStorage.setItem("image", data.admin.image ?? "");
-      router.push("/admin/dashboard");
+      navigate("/admin/dashboard", {});
       navigating = true;
     } catch {
       setError("We couldn’t complete sign-in. Check your connection and try again.");

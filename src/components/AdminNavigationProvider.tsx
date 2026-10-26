@@ -3,6 +3,7 @@
 import { createContext, useContext, useRef, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import AdminTabLoader from "./AdminTabLoader";
 import styles from "./AdminNavigationLoading.module.css";
 
 type NavigationOptions = { replace?: boolean; scroll?: boolean };
@@ -33,6 +34,7 @@ export default function AdminNavigationProvider({ children }: { children: ReactN
   }
 
   return <NavigationContext.Provider value={navigate}>
+    <AdminTabLoader active={pending} />
     {children}
     {pending && <div className={styles.progress} role="status" aria-label="Loading page"><span /></div>}
   </NavigationContext.Provider>;

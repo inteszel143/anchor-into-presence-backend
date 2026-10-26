@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useAdminNavigation } from "@/components/AdminNavigationProvider";
 import Link from "@/components/AdminLink";
 import { ArrowLeft, FolderOpen } from "lucide-react";
 import styles from "../../category-form.module.css";
@@ -9,7 +10,7 @@ import { toast } from "react-toastify";
 
 export default function EditActivityPage() {
   const { id } = useParams();
-  const router = useRouter();
+  const navigate = useAdminNavigation();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -63,7 +64,7 @@ export default function EditActivityPage() {
 
     if (res.ok) {
       toast.success("Category updated successfully");
-      router.push("/admin/category");
+      navigate("/admin/category", {});
     } else {
       const data = await res.json();
       toast.error(data.message || "Failed to update category.");

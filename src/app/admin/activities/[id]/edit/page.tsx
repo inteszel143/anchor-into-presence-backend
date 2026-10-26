@@ -3,7 +3,8 @@
 import { activityFileSizeError, UPLOAD_LIMIT_MESSAGE } from "@/lib/activityUploadLimits";
 import { useEffect, useRef, useState } from "react";
 import { getActivityImage, isDailyPauseCategory } from "@/lib/activityMedia";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useAdminNavigation } from "@/components/AdminNavigationProvider";
 import Select from "react-select";
 import { toast } from "react-toastify";
 import styles from "../../activity-form.module.css";
@@ -14,7 +15,7 @@ type OptionType = { value: string; label: string };
 
 export default function EditActivityPage() {
   const { id } = useParams();
-  const router = useRouter();
+  const navigate = useAdminNavigation();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -135,7 +136,7 @@ export default function EditActivityPage() {
 
       if (res.ok) {
         toast.success("Activity updated successfully.");
-        router.push("/admin/activities");
+        navigate("/admin/activities", {});
       } else {
         const data = await res.json().catch(() => ({}));
         toast.error(res.status === 413 ? UPLOAD_LIMIT_MESSAGE : data.message || "Failed to update activity.");

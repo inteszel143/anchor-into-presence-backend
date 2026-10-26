@@ -4,7 +4,7 @@ import { activityFileSizeError } from "@/lib/activityUploadLimits";
 import { useEffect, useState } from "react";
 import { uploadActivity } from "@/lib/uploadActivity";
 import { isDailyPauseCategory } from "@/lib/activityMedia";
-import { useRouter } from "next/navigation";
+import { useAdminNavigation } from "@/components/AdminNavigationProvider";
 import { LoaderCircle, Plus } from "lucide-react";
 import Select from "react-select";
 import { toast } from "react-toastify";
@@ -52,7 +52,7 @@ export default function CreateActivityPage() {
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
-  const router = useRouter();
+  const navigate = useAdminNavigation();
 
   const isDailyPause = isDailyPauseCategory(categories.find(cat => cat._id === selectedCategory)?.name);
 
@@ -128,7 +128,7 @@ export default function CreateActivityPage() {
 
     if (res.ok) {
       toast.success("Activity created successfully.");
-      router.push("/admin/activities"); // Redirect to list page
+      navigate("/admin/activities", {}); // Redirect to list page
     } else {
       toast.error(res.message || "Failed to create activity.");
     }
