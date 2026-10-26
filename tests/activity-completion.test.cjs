@@ -44,3 +44,30 @@ test('Track returns authenticated recent completions without server-day cutoff',
  assert.equal(completionPipeline[1].$sort.createdAt,-1);
  assert.equal(completionPipeline[7].$unwind.preserveNullAndEmptyArrays,true);
 });
+
+test('reopening a completed practice reads account completion even after replay', async()=>{
+ const activityId='507f1f77bcf86cd799439012';
+ let userId='507f1f77bcf86cd799439011';
+ const logs=[];
+ const route=load('src/app/api/users/activities/[id]/route.ts',{
+  'next/server':{NextResponse},mongoose,
+  '@/lib/db':{connectDB:async()=>{}},
+  '@/lib/getAuthUser':{getAuthUser:async()=>({userId})},
+  '@/models/Activity':{Activity:{aggregate:async()=>[{_id:activityId,name:'Calm'}]}},
+  '@/models/UserActivityLogs':{UserActivityLogs:{
+   create:async log=>{logs.push(log);return log},
+   exists:async query=>logs.find(log=>String(log.userId)===String(query.userId)&&String(log.activityId)===String(query.activityId)&&log.isCompleted===query.isCompleted)||null,
+  }},
+ });
+ const params={params:Promise.resolve({id:activityId})};
+ const read=()=>route.GET({},params);
+ assert.equal((await (await read()).json()).data.isCompleted,false);
+ await route.POST({json:async()=>({videoTimestamp:'05:00',totalVideoTime:'05:00',isCompleted:true})},params);
+ let response=await read();
+ assert.equal(response.headers.get('cache-control'),'private, no-store');
+ assert.equal((await response.json()).data.isCompleted,true);
+ await route.POST({json:async()=>({videoTimestamp:'00:01',totalVideoTime:'05:00',isCompleted:false})},params);
+ assert.equal((await (await read()).json()).data.isCompleted,true);
+ userId='507f1f77bcf86cd799439013';
+ assert.equal((await (await read()).json()).data.isCompleted,false);
+});

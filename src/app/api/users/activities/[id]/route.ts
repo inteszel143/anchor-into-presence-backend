@@ -92,11 +92,17 @@ export async function GET(
     });
   }
 
+  // Completion belongs to the account, not just the newest playback session.
+  const completion = await UserActivityLogs.exists({
+    userId: new mongoose.Types.ObjectId(userId as string),
+    activityId: new mongoose.Types.ObjectId(id),
+    isCompleted: true,
+  });
   return NextResponse.json({
     message: "Activity fetched successfully",
-    data: result[0],
+    data: { ...result[0], isCompleted: Boolean(completion) },
     status: true,
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 /**

@@ -49,7 +49,8 @@ export async function GET(req: NextRequest) {
           playedAt: { $first: "$createdAt" },
           videoTimestamp: { $first: "$videoTimestamp" },
           totalVideoTime: { $first: "$totalVideoTime" },
-          isCompleted: { $first: "$isCompleted" },
+          // A later playback-start log must not erase an earlier completion.
+          isCompleted: { $max: { $eq: ["$isCompleted", true] } },
         },
       },
       // 4. Sort the distinct activities by the latest played date descending
