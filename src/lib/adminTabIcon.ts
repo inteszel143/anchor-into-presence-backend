@@ -23,11 +23,11 @@ export function acquireAdminTabIcon(): () => void {
         context!.clearRect(0, 0, 32, 32);
         context!.lineWidth = 4;
         context!.lineCap = "round";
-        context!.strokeStyle = "#ded9ce";
+        context!.strokeStyle = "#dbeafe";
         context!.beginPath();
         context!.arc(16, 16, 11, 0, Math.PI * 2);
         context!.stroke();
-        context!.strokeStyle = "#77765f";
+        context!.strokeStyle = "#2563eb";
         context!.beginPath();
         context!.arc(16, 16, 11, angle, angle + Math.PI * 1.35);
         context!.stroke();

@@ -10,6 +10,7 @@ export async function sendNotificationToUser(fcmToken: string, title: string, bo
     android: {
       notification: {
         sound: 'default',
+        channelId: 'default_channel',
       },
     },
     apns: {

@@ -180,3 +180,5 @@
 .tooltipLabel::after { content: ""; position: absolute; top: 100%; right: 16px; border: 5px solid transparent; border-top-color: var(--admin-text, #4b473f); }
 .actionTooltip::before { content: ""; position: absolute; bottom: 100%; left: 0; right: 0; height: 8px; }
 .actionTooltip:hover .tooltipLabel, .actionTooltip:focus-within .tooltipLabel { visibility: visible; opacity: 1; }
+
+.avatarImage { display: block; width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }

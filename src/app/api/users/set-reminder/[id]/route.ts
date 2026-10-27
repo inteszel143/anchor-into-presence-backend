@@ -4,7 +4,6 @@ import { UserScheduleNotification } from "@/models/UserScheduleNotification";
 import mongoose from "mongoose";
 import { ScheduledCronJob } from "@/models/ScheduledCronJob";
 import { cronJobRegistry } from "@/cron/cronRegistry";
-import { User } from "@/models/User";
 import { scheduleReminder } from "@/cron/scheduleReminder";
 import { deleteReminder } from "@/cron/deleteReminder";
 import { apiErrorResponse } from "@/lib/apiResponse";
@@ -59,10 +58,7 @@ export async function PUT(
       await ScheduledCronJob.deleteOne({ reminderId: id });
     }
     // Schedule new cron job
-    const userRecord = await User.findById(reminder.userId);
-    if (userRecord?.fcmToken) {
-      await scheduleReminder(reminder, userRecord.fcmToken);
-    }
+    await scheduleReminder(reminder);
 
     return NextResponse.json({
       message: "Reminder updated successfully",

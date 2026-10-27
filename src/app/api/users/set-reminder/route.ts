@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { UserScheduleNotification } from "@/models/UserScheduleNotification";
 import { getAuthUser } from "@/lib/getAuthUser";
-import { User } from "@/models/User";
 import { scheduleReminder } from "@/cron/scheduleReminder";
 import { apiErrorResponse } from "@/lib/apiResponse";
 
@@ -34,11 +33,7 @@ export async function POST(req: NextRequest) {
       date: date ? new Date(date) : null,
     });
 
-    const user = await getAuthUser(req); // Or fetch fresh user to get fcmToken
-    const userRecord = await User.findById(userId);
-    if (userRecord?.fcmToken) {
-      await scheduleReminder(reminder, userRecord.fcmToken);
-    }
+    await scheduleReminder(reminder);
 
     return NextResponse.json({
       message: "Reminder set successfully",

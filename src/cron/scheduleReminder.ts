@@ -8,7 +8,7 @@ import {
 } from "../lib/helperMethods";
 import { User } from "@/models/User";
 
-export async function scheduleReminder(reminder: any, fcmToken: string) {
+export async function scheduleReminder(reminder: any, fcmToken?: string) {
   try {
 
     const jobKey = `reminder-${reminder._id}`;
@@ -65,7 +65,7 @@ export async function scheduleReminder(reminder: any, fcmToken: string) {
         cronJobRegistry.delete(jobKey);
         await ScheduledCronJob.deleteOne({ reminderId: reminder._id });
       }
-    });
+    }, reminder.date ? {} : { timezone: "UTC" });
 
     cronJobRegistry.set(jobKey, task);
 

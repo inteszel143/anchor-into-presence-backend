@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
           { $sort: { createdAt: -1, _id: -1 } },
           { $skip: (page - 1) * limit },
           { $limit: limit },
-          { $project: { name: 1, email: 1, isBlocked: 1, isTestAccount: 1, createdAt: 1, purchase: 1 } },
+          { $project: { name: 1, email: 1, image: 1, isBlocked: 1, isTestAccount: 1, createdAt: 1, purchase: 1 } },
         ],
         count: [{ $count: "total" }],
       } },
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
 
   const total = await User.countDocuments(query);
   const users = await User.find(query)
-    .select("name email isBlocked isTestAccount createdAt")
+    .select("name email image isBlocked isTestAccount createdAt")
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit)

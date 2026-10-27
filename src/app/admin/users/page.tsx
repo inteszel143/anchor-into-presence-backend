@@ -2,6 +2,8 @@
 
 import { ChevronLeft, ChevronRight, Search, FlaskConical, Users, X, RefreshCw, Leaf, ShieldBan, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { getImageUrl } from "@/lib/getImageUrl";
 import { toast } from "react-toastify";
 import styles from "./users-wellness.module.css";
 import type { AdminSubscription } from "@/lib/adminSubscriptionStatus";
@@ -17,11 +19,20 @@ type User = {
   _id: string;
   name: string;
   email: string;
+  image?: string | null;
   isBlocked: boolean;
   isTestAccount?: boolean;
   subscription?: AdminSubscription;
   createdAt: string;
 };
+
+function UserAvatar({ image, initials }: { image?: string | null; initials: string }) {
+  const src = getImageUrl(image?.trim());
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  return <span className={styles.avatar} aria-hidden="true">
+    {src && failedSrc !== src ? <Image src={src} alt="" width={42} height={42} className={styles.avatarImage} unoptimized onError={() => setFailedSrc(src)} /> : initials}
+  </span>;
+}
 
 function joinedDate(value: string) {
   const date = new Date(value);
@@ -286,7 +297,7 @@ export default function AdminUserListPage() {
                 const subscription = user.subscription;
                 const subscriptionLabel = subscription?.status === "active" ? (subscription.plan === "lifetime" ? "Lifetime access" : "Active subscription") : subscription?.status === "expired" ? "Expired subscription" : subscription?.status === "none" ? "Registered only" : "Needs review";
                 return <tr key={user._id}>
-                  <td><div className={styles.identity}><span className={styles.avatar} aria-hidden="true">{initials}</span><div><span className={styles.name}>{name}</span>{user.isTestAccount && <span className={`${styles.badge} ${styles.testBadge}`}><FlaskConical size={13} aria-hidden="true" />Test account</span>}<span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
+                  <td><div className={styles.identity}><UserAvatar image={user.image} initials={initials} /><div><span className={styles.name}>{name}</span>{user.isTestAccount && <span className={`${styles.badge} ${styles.testBadge}`}><FlaskConical size={13} aria-hidden="true" />Test account</span>}<span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
                   <td><span className={styles.userId} title={user._id}>#{user._id.slice(-6)}</span></td>
                   <td className={styles.date}>{joinedDate(user.createdAt)}</td>
                   <td><span className={`${styles.badge} ${user.isBlocked ? styles.blocked : styles.active}`}><span aria-hidden="true" />{user.isBlocked ? "Blocked" : "Active"}</span></td>
