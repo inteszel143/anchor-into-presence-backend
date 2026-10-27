@@ -179,7 +179,6 @@ export async function GET(req: NextRequest) {
       {
         $match: {
           userId: new mongoose.Types.ObjectId(userId as string),
-          $expr: { $gte: [{ $size: "$loginDates" }, 2] },
         },
       },
       {
@@ -221,11 +220,23 @@ export async function GET(req: NextRequest) {
       } },
     ]);
 
+    // Practice dates are independent of login history and recent-list limits.
+    // Return timestamps so the mobile client can assign the correct local day.
+    const practiceDates = await UserActivityLogs.aggregate([
+      { $match: {
+        userId: new mongoose.Types.ObjectId(userId as string),
+        isCompleted: true,
+      } },
+      { $group: { _id: "$createdAt" } },
+      { $sort: { _id: 1 } },
+    ]);
+
     // 4. Final result
     return NextResponse.json({
       message: "User activity summary for today",
       data: {
         completedActivities,
+        practiceDates: practiceDates.map((entry) => entry._id),
         loggedActivities: {
           totalTime,
           thumbnails,

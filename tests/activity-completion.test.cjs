@@ -19,6 +19,7 @@ test('activity log model can reload without OverwriteModelError',()=>{
 test('Track returns authenticated recent completions without server-day cutoff',async()=>{
  const userId='507f1f77bcf86cd799439011';
  let completionPipeline;
+ let practicePipeline;
  const completed={_id:'log',name:'Evening calm',completedAt:'2026-10-11T23:55:00Z',totalVideoTime:'10:00'};
  const {GET}=load('src/app/api/users/user-track/route.ts',{
   'next/server':{NextResponse},mongoose,'date-fns':require('date-fns'),
@@ -27,6 +28,7 @@ test('Track returns authenticated recent completions without server-day cutoff',
   '@/lib/apiResponse':{apiErrorResponse:error=>{throw error}},
   '@/models/UserLoginStreak':{UserLoginStreak:{aggregate:async()=>[]}},
   '@/models/UserActivityLogs':{UserActivityLogs:{aggregate:async pipeline=>{
+   if(pipeline[1]?.$group?._id === '$createdAt'){practicePipeline=pipeline;return [{_id:'2026-10-11T23:55:00Z'}]}
    if(pipeline[0].$match.isCompleted){completionPipeline=pipeline;return [completed]}
    return [];
   }}},
@@ -34,6 +36,11 @@ test('Track returns authenticated recent completions without server-day cutoff',
  const response=await GET({});const body=await response.json();
  assert.equal(response.headers.get('cache-control'),'private, no-store');
  assert.equal(body.data.completedActivities[0].name,'Evening calm');
+ assert.deepEqual(body.data.practiceDates,['2026-10-11T23:55:00Z']);
+ assert.equal(String(practicePipeline[0].$match.userId),userId);
+ assert.equal(practicePipeline[0].$match.isCompleted,true);
+ assert.equal(practicePipeline[0].$match.$or,undefined);
+ assert.equal(practicePipeline.some(stage=>stage.$limit),false);
  assert.equal(String(completionPipeline[0].$match.userId),userId);
  assert.equal(completionPipeline[0].$match.createdAt,undefined);
  assert.equal(completionPipeline[2].$group._id,'$activityId');

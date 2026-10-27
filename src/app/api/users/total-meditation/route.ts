@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { UserActivityLogs } from "@/models/UserActivityLogs";
 import { apiErrorResponse } from "@/lib/apiResponse";
-import { startOfWeek, endOfWeek, addDays, format } from "date-fns";
+import { startOfWeek, endOfWeek } from "date-fns";
 import { getAuthUser } from "@/lib/getAuthUser";
 import mongoose from "mongoose";
 
@@ -12,8 +12,19 @@ export async function GET(req: NextRequest) {
 
   try {
     const weekStartsOn = req.nextUrl.searchParams.get("weekStartsOn") === "0" ? 0 : 1;
-    const weekStart = startOfWeek(new Date(), { weekStartsOn });
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn });
+    let weekStart = startOfWeek(new Date(), { weekStartsOn });
+    let weekEnd = endOfWeek(weekStart, { weekStartsOn });
+    const rawOffset = req.nextUrl.searchParams.get("utcOffsetMinutes");
+    const parsedOffset = rawOffset === null ? NaN : Number(rawOffset);
+    const offset = Number.isInteger(parsedOffset) && Math.abs(parsedOffset) <= 840
+      ? parsedOffset : 0;
+    if (rawOffset !== null) {
+      const local = new Date(Date.now() + offset * 60000);
+      const dayDelta = (local.getUTCDay() - weekStartsOn + 7) % 7;
+      weekStart = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(),
+        local.getUTCDate() - dayDelta) - offset * 60000);
+      weekEnd = new Date(weekStart.getTime() + 7 * 86400000 - 1);
+    }
     const isoDayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const dayLabels = weekStartsOn === 0
       ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -59,13 +70,14 @@ export async function GET(req: NextRequest) {
               0,
             ],
           },
-          dayOfWeek: { $isoDayOfWeek: "$createdAt" }, // 1 (Mon) - 7 (Sun)
+          dayOfWeek: { $isoDayOfWeek: { $add: ["$createdAt", offset * 60000] } }, // 1 (Mon) - 7 (Sun)
         },
       },
       {
         $group: {
           _id: "$dayOfWeek",
           totalWatched: { $sum: "$watchedDurationMinutes" },
+          completions: { $sum: { $cond: [{ $eq: ["$isCompleted", true] }, 1, 0] } },
         },
       },
     ]);
@@ -76,6 +88,7 @@ export async function GET(req: NextRequest) {
       return {
         day: label,
         value: match ? Math.round(match.totalWatched) : 0,
+        completions: match?.completions ?? 0,
       };
     });
 
@@ -162,7 +175,7 @@ export async function GET(req: NextRequest) {
         week,
       },
       status: true,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiErrorResponse(error, { message: "Internal server error" });
   }
