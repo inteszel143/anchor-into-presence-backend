@@ -17,6 +17,8 @@ const UserSchema = new mongoose.Schema(
     notificationReceive: { type: Boolean, default: true },
     isTestAccount: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },
+    deletionPending: { type: Boolean, default: false },
+    deletionPlan: { type: mongoose.Schema.Types.Mixed, default: null, select: false },
   },
   { timestamps: true }
 );
@@ -24,6 +26,9 @@ const UserSchema = new mongoose.Schema(
 // Update every cached alias so strict updates do not silently drop the label.
 for (const name of ["User", "user", "users"]) {
   const cachedModel = mongoose.models[name];
+  if (cachedModel && !cachedModel.schema.path("deletionPending")) {
+    cachedModel.schema.add({ deletionPending: { type: Boolean, default: false }, deletionPlan: { type: mongoose.Schema.Types.Mixed, default: null, select: false } });
+  }
   if (cachedModel && !cachedModel.schema.path("isTestAccount")) {
     cachedModel.schema.add({ isTestAccount: { type: Boolean, default: false } });
   }

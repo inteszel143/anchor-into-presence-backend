@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Search, FlaskConical, Users, X, RefreshCw, Leaf } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, FlaskConical, Users, X, RefreshCw, Leaf, ShieldBan, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import styles from "./users-wellness.module.css";
@@ -46,6 +46,47 @@ export default function AdminUserListPage() {
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [pending, setPending] = useState<string | null>(null);
+
+  const [accountAction, setAccountAction] = useState<{ user: User; type: "block" | "unblock" | "delete" } | null>(null);
+  const [confirmation, setConfirmation] = useState("");
+  const [actionError, setActionError] = useState("");
+  const actionDialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (!accountAction) return;
+    const dialog = actionDialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = "hidden";
+    return () => { dialog?.close(); document.body.style.overflow = previousOverflow; };
+  }, [accountAction]);
+
+  function openAccountAction(user: User, type: "block" | "unblock" | "delete") {
+    setConfirmation(""); setActionError(""); setAccountAction({ user, type });
+  }
+
+  async function saveAccountAction() {
+    if (!accountAction || pending) return;
+    const { user, type } = accountAction;
+    setPending(user._id);
+    setActionError("");
+    try {
+      const response = await fetch(`/api/admin/users/${user._id}`, {
+        method: type === "delete" ? "DELETE" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(type === "delete" ? { confirmation } : { isBlocked: type === "block" }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not update this account.");
+      if (type !== "delete" && data.isBlocked !== (type === "block")) throw new Error("Account access was not saved. Please try again.");
+      setUsers(current => type === "delete" ? current.filter(item => item._id !== user._id) : current.map(item => item._id === user._id ? { ...item, isBlocked: data.isBlocked } : item));
+      toast.success(type === "delete" ? "Account permanently deleted" : type === "block" ? "Account blocked" : "Account unblocked");
+      setAccountAction(null);
+      setRefresh(value => value + 1);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not update this account.");
+    } finally { setPending(null); }
+  }
 
   const [testAccount, setTestAccount] = useState<User | null>(null);
   const [labelError, setLabelError] = useState("");
@@ -160,6 +201,22 @@ export default function AdminUserListPage() {
 
   return (
     <div className={styles.page}>
+      <dialog ref={actionDialogRef} className={styles.testModal} aria-labelledby="account-action-title" aria-describedby="account-action-description" onCancel={event => { event.preventDefault(); if (!pending) setAccountAction(null); }}>
+        {accountAction && <div className={styles.modalContent} aria-busy={pending !== null}>
+          <button type="button" className={styles.modalClose} aria-label="Close confirmation" disabled={pending !== null} onClick={() => setAccountAction(null)}><X size={20} aria-hidden="true" /></button>
+          <p className={styles.modalEyebrow}>Account access</p>
+          <h2 id="account-action-title">{accountAction.type === "delete" ? "Permanently delete account?" : accountAction.type === "block" ? "Block this account?" : "Unblock this account?"}</h2>
+          <p id="account-action-description" className={styles.modalDescription}>{accountAction.type === "delete" ? "This cannot be undone. Removes the account, purchase records, practice history, reminders, support requests, and community contributions. Discussions on this user’s posts are also removed." : accountAction.type === "block" ? "Stops sign-in, access from existing sessions, and reminders. Account data stays saved, and you can unblock this user anytime." : "Restores sign-in and app access for this user."}</p>
+          <div className={styles.modalAccount}><span className={styles.avatar} aria-hidden="true"><Users size={20} /></span><div><strong>{accountAction.user.name || "Unnamed user"}</strong><span>{accountAction.user.email || accountAction.user._id}</span></div></div>
+          <p className={styles.modalDescription}>This does not cancel an App Store or Google Play subscription. The user must manage that through their store account.</p>
+          {accountAction.type === "delete" && <label className={styles.confirmationLabel} htmlFor="delete-confirmation">Type {accountAction.user.email ? "the email address" : "the full user ID"} above to confirm<input id="delete-confirmation" value={confirmation} onChange={event => setConfirmation(event.target.value)} autoComplete="off" spellCheck={false} disabled={pending !== null} /></label>}
+          {actionError && <p className={styles.modalError} role="alert">{actionError}</p>}
+          <div className={styles.modalActions}>
+            <button type="button" className={styles.modalCancel} autoFocus disabled={pending !== null} onClick={() => setAccountAction(null)}>Cancel</button>
+            <button type="button" className={`${styles.modalConfirm} ${accountAction.type === "delete" ? styles.deleteConfirm : ""}`} disabled={pending !== null || (accountAction.type === "delete" && confirmation !== (accountAction.user.email || accountAction.user._id))} onClick={() => void saveAccountAction()}>{pending ? "Saving…" : accountAction.type === "delete" ? "Delete permanently" : accountAction.type === "block" ? "Block account" : "Unblock account"}</button>
+          </div>
+        </div>}
+      </dialog>
       <dialog ref={dialogRef} className={styles.testModal} aria-labelledby="test-modal-title" aria-describedby="test-modal-description" onCancel={event => { event.preventDefault(); closeTestModal(); }} onClick={event => { if (event.target === event.currentTarget) { const bounds = event.currentTarget.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeTestModal(); } }}>
         {testAccount && <div className={styles.modalContent} aria-busy={pending !== null}>
           <button type="button" className={styles.modalClose} aria-label="Close confirmation" disabled={pending !== null} onClick={closeTestModal}><X size={20} aria-hidden="true" /></button>
@@ -239,7 +296,18 @@ export default function AdminUserListPage() {
                     {user.isTestAccount && <span className={styles.subscriptionDetail}>Excluded from subscriber totals</span>}
                   </div></td>
                   <td><div className={styles.actions}>
-                    <button type="button" className={styles.testButton} disabled={pending !== null} onClick={() => { if (user.isTestAccount) void toggleTestAccount(user); else { setLabelError(""); setTestAccount(user); } }} aria-label={`${user.isTestAccount ? "Remove test label from" : "Mark as test account:"} ${name}`}><FlaskConical size={16} aria-hidden="true" />{pending === user._id ? "Saving…" : user.isTestAccount ? "Remove test label" : "Mark as test"}</button>
+                    <span className={styles.actionTooltip}>
+                      <button type="button" className={styles.testButton} disabled={pending !== null} onClick={() => openAccountAction(user, user.isBlocked ? "unblock" : "block")} aria-describedby={`block-tooltip-${user._id}`} aria-label={`${user.isBlocked ? "Unblock" : "Block"} ${name}`}>{user.isBlocked ? <ShieldCheck size={16} aria-hidden="true" /> : <ShieldBan size={16} aria-hidden="true" />}</button>
+                      <span role="tooltip" id={`block-tooltip-${user._id}`} className={styles.tooltipLabel}>{user.isBlocked ? "Unblock account" : "Block account"}</span>
+                    </span>
+                    <span className={styles.actionTooltip}>
+                      <button type="button" className={`${styles.testButton} ${styles.deleteButton}`} disabled={pending !== null} onClick={() => openAccountAction(user, "delete")} aria-describedby={`delete-tooltip-${user._id}`} aria-label={`Delete ${name}`}><Trash2 size={16} aria-hidden="true" /></button>
+                      <span role="tooltip" id={`delete-tooltip-${user._id}`} className={styles.tooltipLabel}>{"Delete account"}</span>
+                    </span>
+                    <span className={styles.actionTooltip}>
+                      <button type="button" className={styles.testButton} disabled={pending !== null} onClick={() => { if (user.isTestAccount) void toggleTestAccount(user); else { setLabelError(""); setTestAccount(user); } }} aria-describedby={`test-tooltip-${user._id}`} aria-busy={pending === user._id} aria-label={`${user.isTestAccount ? "Remove test label from" : "Mark as test account:"} ${name}`}><FlaskConical size={16} aria-hidden="true" /></button>
+                      <span role="tooltip" id={`test-tooltip-${user._id}`} className={styles.tooltipLabel}>{pending === user._id ? "Saving…" : user.isTestAccount ? "Remove test label" : "Mark as test"}</span>
+                    </span>
                   </div></td>
                 </tr>;
               })}</tbody>

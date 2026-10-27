@@ -82,3 +82,13 @@ test('only newly created social accounts receive the first-sign-in flag', async 
   const existing = await route({ _id: 'existing', provider: 'google', email: identity.email }).post(identity);
   assert.equal(existing.body.isFirst, false);
 });
+
+for (const provider of ['google', 'apple']) {
+  test(`blocked ${provider} account cannot sign in or update device details`, async () => {
+    const api = route({ _id: 'test-id', provider, email: identity.email, isBlocked: true });
+    const response = await api.post({ ...identity, login_medium: provider, fcmToken: 'new-token' });
+    assert.equal(response.status, 403);
+    assert.equal(api.writes.length, 0);
+    assert.equal(response.body.data, undefined);
+  });
+}

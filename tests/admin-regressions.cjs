@@ -33,7 +33,7 @@ test('admin authentication rejects missing, invalid, expired, and non-admin cook
   const previous = process.env.JWT_SECRET;
   process.env.JWT_SECRET = 'test-only-secret-not-a-real-credential';
   try {
-    const { middleware } = loadModule('src/middleware.ts');
+    const { middleware } = loadModule('src/middleware.ts', { '@/lib/db': { connectDB: async () => {} }, '@/models/User': { User: {} } });
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     const token = (role, expiry = '1h') => new SignJWT({ role, adminId: 'test' }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime(expiry).sign(secret);
     for (const cookie of ['', 'invalid', await token('user'), await token('admin', '-1h')]) {

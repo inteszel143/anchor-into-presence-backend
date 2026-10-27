@@ -8,6 +8,7 @@ const tabs = [
   { id: "experience", label: "The experience" },
   { id: "pricing", label: "Pricing" },
   { id: "questions", label: "FAQs" },
+  { id: "begin", label: "Download" },
 ];
 
 export default function LandingNavigation() {

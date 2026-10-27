@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { jwtVerify } from 'jose'
+import { connectDB } from '@/lib/db'
+import { User } from '@/models/User'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET!)
 
@@ -56,7 +58,11 @@ export async function middleware(req: NextRequest) {
     const token = authHeader.split(' ')[1]
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET)
-      if (payload.role !== 'user') throw new Error('Not user')
+      if (payload.role !== 'user' || typeof payload.userId !== 'string' || !/^[a-f\d]{24}$/i.test(payload.userId)) throw new Error('Not user')
+      await connectDB()
+      const user = await User.findById(payload.userId).select('isBlocked')
+      if (!user) return NextResponse.json({ message: 'Account no longer exists' }, { status: 401 })
+      if (user.isBlocked) return NextResponse.json({ message: 'Your account has been blocked. Please contact support.' }, { status: 403 })
     } catch (err) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 })
     }
@@ -66,6 +72,7 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
+  runtime: 'nodejs',
   matcher: [
     '/admin/:path*',
     '/api/users/:path*',

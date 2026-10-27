@@ -164,3 +164,19 @@
 .subscriptionDetail { display: block; margin-top: 6px; font-size: 11px; line-height: 1.6; color: var(--admin-muted, #787160); }
 .neutralSubscription { color: var(--admin-muted, #787160); background: var(--admin-soft, #eeece5); }
 .expiredSubscription { color: #855a2b; background: #f5ebdc; }
+
+.actions { flex-wrap: wrap; }
+.deleteButton { color: #973c32; border-color: #e3b7af; }
+.testButton.deleteButton:hover:not(:disabled) { background: #fbeeed; }
+.deleteConfirm { background: #973c32; color: #fff; }
+.modalConfirm.deleteConfirm:hover:not(:disabled) { background: #7c3028; }
+.confirmationLabel { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; font-size: 13px; }
+.confirmationLabel input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #b5bcae; border-radius: 10px; font: inherit; background: var(--admin-surface, #fffdfa); color: var(--admin-text, #4b473f); }
+
+.actions .testButton { width: 44px; height: 44px; padding: 0; flex-shrink: 0; }
+
+.actionTooltip { position: relative; display: inline-flex; }
+.tooltipLabel { position: absolute; z-index: 10; bottom: calc(100% + 8px); right: 0; width: max-content; max-width: 180px; padding: 7px 10px; border-radius: 7px; background: var(--admin-text, #4b473f); color: var(--admin-surface, #fffdfa); font-size: 12px; font-weight: 500; line-height: 1.4; text-align: center; box-shadow: 0 4px 12px #0002; visibility: hidden; opacity: 0; }
+.tooltipLabel::after { content: ""; position: absolute; top: 100%; right: 16px; border: 5px solid transparent; border-top-color: var(--admin-text, #4b473f); }
+.actionTooltip::before { content: ""; position: absolute; bottom: 100%; left: 0; right: 0; height: 8px; }
+.actionTooltip:hover .tooltipLabel, .actionTooltip:focus-within .tooltipLabel { visibility: visible; opacity: 1; }

@@ -50,7 +50,7 @@ export async function scheduleReminder(reminder: any, fcmToken: string) {
         const user = await User.findById(reminder.userId);
 
         // Check if user exists, has a token, and notifications are turned on
-        if (user && user.fcmToken && user.notificationReceive !== false) {
+        if (user && !user.isBlocked && user.fcmToken && user.notificationReceive !== false) {
           await sendNotificationToUser(
             user.fcmToken,
             "Reminder",

@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
     const existingUser = await User.findOne({ email });
     
     if (existingUser) {
+      if (existingUser.isBlocked) {
+        return NextResponse.json({ message: "Your account has been blocked. Please contact support." }, { status: 403 });
+      }
       // Verify login medium matches for existing user
       if (existingUser.provider !== normalizedMedium) {
         return NextResponse.json(

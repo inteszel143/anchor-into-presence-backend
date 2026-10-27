@@ -41,7 +41,7 @@ export async function restoreCronJobs() {
     const task = cron.schedule(job.cronExpression, async () => {
       try {
         const freshUser = await User.findById(user._id);
-        if (freshUser && freshUser.fcmToken && freshUser.notificationReceive !== false) {
+        if (freshUser && !freshUser.isBlocked && freshUser.fcmToken && freshUser.notificationReceive !== false) {
           await sendNotificationToUser(
             freshUser.fcmToken,
             "Reminder",
