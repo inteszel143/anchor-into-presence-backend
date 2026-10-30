@@ -29,12 +29,12 @@ export const sendOtpEmail = async (email: string, otp: string) => {
   await createTransporter().sendMail({
     from: FROM,
     to: email,
-    subject: 'Verify Your Email – Anchor into Presence',
+    subject: 'Verify Your Email – Anchor Into Presence',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:8px;">
         <h2 style="color:#2d3748;margin-bottom:8px;">Verify your email address</h2>
         <p style="color:#4a5568;line-height:1.6;">
-          Welcome to <strong>Anchor into Presence</strong>! Please use the OTP code below to verify
+          Welcome to <strong>Anchor Into Presence</strong>! Please use the OTP code below to verify
           your email address and complete your registration.
         </p>
 
@@ -51,7 +51,7 @@ export const sendOtpEmail = async (email: string, otp: string) => {
 
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
         <p style="font-size:12px;color:#a0aec0;text-align:center;">
-          © ${new Date().getFullYear()} Anchor into Presence. All rights reserved.
+          © ${new Date().getFullYear()} Anchor Into Presence. All rights reserved.
         </p>
       </div>
     `,
@@ -63,12 +63,12 @@ export const sendForgotPasswordEmail = async (email: string, otp: string) => {
   await createTransporter().sendMail({
     from: FROM,
     to: email,
-    subject: 'Reset Your Password – Anchor into Presence',
+    subject: 'Reset Your Password – Anchor Into Presence',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:8px;">
         <h2 style="color:#2d3748;margin-bottom:8px;">Forgot your password?</h2>
         <p style="color:#4a5568;line-height:1.6;">
-          We received a request to reset the password for your <strong>Anchor into Presence</strong> account.
+          We received a request to reset the password for your <strong>Anchor Into Presence</strong> account.
           Use the OTP code below to complete the process.
         </p>
 
@@ -85,7 +85,7 @@ export const sendForgotPasswordEmail = async (email: string, otp: string) => {
 
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
         <p style="font-size:12px;color:#a0aec0;text-align:center;">
-          © ${new Date().getFullYear()} Anchor into Presence. All rights reserved.
+          © ${new Date().getFullYear()} Anchor Into Presence. All rights reserved.
         </p>
       </div>
     `,
@@ -120,7 +120,7 @@ export const sendSupportEmail = async ({
         </div>
         <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
         <p style="font-size:12px;color:#a0aec0;text-align:center;">
-          © ${new Date().getFullYear()} Anchor into Presence. All rights reserved.
+          © ${new Date().getFullYear()} Anchor Into Presence. All rights reserved.
         </p>
       </div>
     `,
