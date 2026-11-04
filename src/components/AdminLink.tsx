@@ -9,7 +9,7 @@ export default function AdminLink({ children, onNavigate, ...props }: ComponentP
   const navigate = useAdminNavigation();
   const anchor = useRef<HTMLAnchorElement | null>(null);
 
-  return <Link {...props} ref={element => {
+  return <Link {...props} prefetch={false} ref={element => {
     anchor.current = element;
     if (typeof props.ref === "function") props.ref(element);
     else if (props.ref) props.ref.current = element;

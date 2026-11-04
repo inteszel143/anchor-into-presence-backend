@@ -46,6 +46,17 @@ export async function middleware(req: NextRequest) {
     } catch (err) {
       return unauthorized()
     }
+
+    // Delay document responses so the browser's native tab spinner stays active.
+    // API calls, prefetches, and client-side requests should remain immediate.
+    if (!isApi && req.method === 'GET' &&
+      req.headers.get('accept')?.includes('text/html') &&
+      !req.headers.has('rsc') &&
+      !req.headers.has('next-router-prefetch') &&
+      req.headers.get('purpose') !== 'prefetch' &&
+      !req.headers.get('sec-purpose')?.includes('prefetch')) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
   }
 
   // ✅ Mobile API (users): use Bearer token

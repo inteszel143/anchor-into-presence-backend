@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Search, FlaskConical, Users, X, RefreshCw, Leaf, ShieldBan, ShieldCheck, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Users, X, RefreshCw, Leaf, ShieldBan, ShieldCheck, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { getImageUrl } from "@/lib/getImageUrl";
@@ -99,22 +99,6 @@ export default function AdminUserListPage() {
     } finally { setPending(null); }
   }
 
-  const [testAccount, setTestAccount] = useState<User | null>(null);
-  const [labelError, setLabelError] = useState("");
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    if (!testAccount) return;
-    const dialog = dialogRef.current;
-    const previousOverflow = document.body.style.overflow;
-    dialog?.showModal();
-    document.body.style.overflow = "hidden";
-    return () => {
-      dialog?.close();
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [testAccount]);
-
   useEffect(() => {
     const controller = new AbortController();
     setSummary(null);
@@ -132,12 +116,6 @@ export default function AdminUserListPage() {
     void loadSummary();
     return () => controller.abort();
   }, [refresh, summaryRefresh]);
-
-  function closeTestModal() {
-    if (pending) return;
-    setTestAccount(null);
-    setLabelError("");
-  }
 
   useEffect(() => {
     const timer = setTimeout(() => { setQuery(search); setPage(1); }, 300);
@@ -170,35 +148,6 @@ export default function AdminUserListPage() {
     return () => controller.abort();
   }, [query, accountType, startDate, endDate, page, limit, refresh]);
 
-  async function toggleTestAccount(user: User) {
-    if (pending) return;
-    setLabelError("");
-    setPending(user._id);
-    try {
-      const res = await fetch(`/api/admin/users/${user._id}/test-account`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isTestAccount: !user.isTestAccount }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Couldn’t update this user.");
-      }
-      const saved = await res.json();
-      if (saved.isTestAccount !== !user.isTestAccount) {
-        throw new Error("The test account label wasn’t saved. Please try again.");
-      }
-      toast.success(saved.isTestAccount ? "Marked as a test account" : "Test account label removed");
-      setUsers(current => current.map(item => item._id === user._id ? { ...item, isTestAccount: saved.isTestAccount } : item));
-      setTestAccount(null);
-      setRefresh(value => value + 1);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Couldn’t update this user.";
-      if (testAccount) setLabelError(message);
-      else toast.error(message);
-    } finally { setPending(null); }
-  }
-
   function clearFilters() {
     setAccountType("registered"); setSearch(""); setQuery(""); setStartDate(""); setEndDate(""); setPage(1);
   }
@@ -228,25 +177,6 @@ export default function AdminUserListPage() {
           </div>
         </div>}
       </dialog>
-      <dialog ref={dialogRef} className={styles.testModal} aria-labelledby="test-modal-title" aria-describedby="test-modal-description" onCancel={event => { event.preventDefault(); closeTestModal(); }} onClick={event => { if (event.target === event.currentTarget) { const bounds = event.currentTarget.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeTestModal(); } }}>
-        {testAccount && <div className={styles.modalContent} aria-busy={pending !== null}>
-          <button type="button" className={styles.modalClose} aria-label="Close confirmation" disabled={pending !== null} onClick={closeTestModal}><X size={20} aria-hidden="true" /></button>
-          <div className={styles.modalIcon}><FlaskConical size={28} strokeWidth={1.6} aria-hidden="true" /></div>
-          <p className={styles.modalEyebrow}>Account label</p>
-          <h2 id="test-modal-title">Mark as a test account?</h2>
-          <p id="test-modal-description" className={styles.modalDescription}>Confirm you’ve reviewed this account and verified it is used for testing.</p>
-          <div className={styles.modalAccount}>
-            <span className={styles.avatar} aria-hidden="true"><Users size={20} /></span>
-            <div><strong>{testAccount.name?.trim() || "Unnamed user"}</strong><span>{testAccount.email || "No email address"}</span></div>
-          </div>
-          <div className={styles.modalNote}><Leaf size={18} aria-hidden="true" /><p>This adds a <strong>Test account</strong> badge. Account access and data stay unchanged, and you can remove the label anytime.</p></div>
-          {labelError && <p className={styles.modalError} role="alert">{labelError}</p>}
-          <div className={styles.modalActions}>
-            <button type="button" className={styles.modalCancel} autoFocus disabled={pending !== null} onClick={closeTestModal}>Cancel</button>
-            <button type="button" className={styles.modalConfirm} disabled={pending !== null} onClick={() => void toggleTestAccount(testAccount)}><FlaskConical size={16} aria-hidden="true" />{pending ? "Saving…" : "Yes, mark as test"}</button>
-          </div>
-        </div>}
-      </dialog>
       <div className={styles.heading}>
         <div><p className={styles.eyebrow}>Your community</p><h1>Users</h1><p className={styles.subtitle}>The people making presence part of their everyday.</p></div>
         <div className={styles.count} aria-live="polite"><Users size={20} aria-hidden="true" /><div><strong>{busy || error ? "—" : total.toLocaleString()}</strong><span>{filtered ? "Matching users" : "Registered users"}</span></div></div>
@@ -262,7 +192,7 @@ export default function AdminUserListPage() {
         {summaryError && <p role="alert" className={styles.modalError}>{summaryError} <button type="button" className={styles.textButton} onClick={() => setSummaryRefresh(value => value + 1)}>Retry</button></p>}
         <p className={styles.summaryNote}>Subscription estimates use the latest recorded purchase: 30 days for monthly, 365 days for yearly, and ongoing access for lifetime. Renewals, refunds, and store test purchases may not be reflected. This is not a verified Apple or Google subscription total.</p>
       </section>
-      <div className={styles.communityNote}><Leaf size={18} aria-hidden="true" /><p>Review accounts before marking them as tests. Test account badges are labels only; account access and data stay unchanged.</p></div>
+      <div className={styles.communityNote}><Leaf size={18} aria-hidden="true" /><p>Previously labeled test accounts are excluded from subscriber totals; account access and data stay unchanged.</p></div>
       <section className={styles.card} aria-label="User management" aria-busy={busy}>
         <div className={styles.directoryHeading}>
           <div><h2>Community directory</h2><p>Registration, account access, and subscription estimates in one place</p></div>
@@ -297,7 +227,7 @@ export default function AdminUserListPage() {
                 const subscription = user.subscription;
                 const subscriptionLabel = subscription?.status === "active" ? (subscription.plan === "lifetime" ? "Lifetime access" : "Active subscription") : subscription?.status === "expired" ? "Expired subscription" : subscription?.status === "none" ? "Registered only" : "Needs review";
                 return <tr key={user._id}>
-                  <td><div className={styles.identity}><UserAvatar image={user.image} initials={initials} /><div><span className={styles.name}>{name}</span>{user.isTestAccount && <span className={`${styles.badge} ${styles.testBadge}`}><FlaskConical size={13} aria-hidden="true" />Test account</span>}<span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
+                  <td><div className={styles.identity}><UserAvatar image={user.image} initials={initials} /><div><span className={styles.name}>{name}</span><span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
                   <td><span className={styles.userId} title={user._id}>#{user._id.slice(-6)}</span></td>
                   <td className={styles.date}>{joinedDate(user.createdAt)}</td>
                   <td><span className={`${styles.badge} ${user.isBlocked ? styles.blocked : styles.active}`}><span aria-hidden="true" />{user.isBlocked ? "Blocked" : "Active"}</span></td>
@@ -314,10 +244,6 @@ export default function AdminUserListPage() {
                     <span className={styles.actionTooltip}>
                       <button type="button" className={`${styles.testButton} ${styles.deleteButton}`} disabled={pending !== null} onClick={() => openAccountAction(user, "delete")} aria-describedby={`delete-tooltip-${user._id}`} aria-label={`Delete ${name}`}><Trash2 size={16} aria-hidden="true" /></button>
                       <span role="tooltip" id={`delete-tooltip-${user._id}`} className={styles.tooltipLabel}>{"Delete account"}</span>
-                    </span>
-                    <span className={styles.actionTooltip}>
-                      <button type="button" className={styles.testButton} disabled={pending !== null} onClick={() => { if (user.isTestAccount) void toggleTestAccount(user); else { setLabelError(""); setTestAccount(user); } }} aria-describedby={`test-tooltip-${user._id}`} aria-busy={pending === user._id} aria-label={`${user.isTestAccount ? "Remove test label from" : "Mark as test account:"} ${name}`}><FlaskConical size={16} aria-hidden="true" /></button>
-                      <span role="tooltip" id={`test-tooltip-${user._id}`} className={styles.tooltipLabel}>{pending === user._id ? "Saving…" : user.isTestAccount ? "Remove test label" : "Mark as test"}</span>
                     </span>
                   </div></td>
                 </tr>;
