@@ -71,7 +71,10 @@ All API endpoints return JSON formatted as `{ status: boolean, message: string, 
 - `GET / POST / PATCH / DELETE /api/admin/faqs`: Manage Frequently Asked Questions.
 - `GET / POST /api/admin/notification`: Dispatch push notifications to mobile users via FCM.
 - `GET / POST /api/admin/content/[id]`: Update CMS legal content (Terms & Conditions, Privacy Policy).
+- `GET / PUT /api/admin/app-version`: Manage Android/iOS versions and approval status, plus app maintenance mode.
 - `GET / PATCH /api/admin/support`: Review and resolve user support tickets.
+
+The public `GET /api/app-version` endpoint returns the approved mobile app versions and maintenance status for the update prompt.
 
 ---
 

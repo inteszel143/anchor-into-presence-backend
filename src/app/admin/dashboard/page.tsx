@@ -68,15 +68,6 @@ export default function DashboardPage() {
         <div><p className={styles.eyebrow}>Your workspace, at a glance</p><h1>Dashboard</h1></div>
         <Link className={styles.createButton} href="/admin/activities/create"><Plus size={17} aria-hidden="true" />Create activity</Link>
       </div>
-      <section className={styles.welcome} aria-labelledby="welcome-heading">
-        <div className={styles.welcomeCopy}>
-          <span className={styles.welcomeLabel}><Leaf size={15} aria-hidden="true" />Your daily ritual for grounding, meditation, and presence.</span>
-          <h2 id="welcome-heading">A thoughtful space.<br />A growing community.</h2>
-          <p>Care for your community, curate meaningful experiences, and make room for the moments that matter.</p>
-          <Link href="/admin/activities">Explore your library <ArrowRight size={16} aria-hidden="true" /></Link>
-        </div>
-        <div className={styles.garden} aria-hidden="true"><span /><span /><span /><span /></div>
-      </section>
       <div className={styles.sectionIntro}><h2>Your community in focus</h2><span>Current totals</span></div>
 
       {error && <div className={styles.error} role="alert"><span>{error}</span><button type="button" onClick={() => setRefresh(value => value + 1)}>Try again</button></div>}
@@ -91,9 +82,19 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      <section className={styles.welcome} aria-labelledby="welcome-heading">
+        <div className={styles.welcomeCopy}>
+          <span className={styles.welcomeLabel}><Leaf size={15} aria-hidden="true" />Your daily ritual for grounding, meditation, and presence.</span>
+          <h2 id="welcome-heading">Make room for meaningful moments.</h2>
+          <p>Care for your community, curate meaningful experiences, and make room for the moments that matter.</p>
+          <Link href="/admin/activities">Explore your library <ArrowRight size={16} aria-hidden="true" /></Link>
+        </div>
+        <div className={styles.garden} aria-hidden="true"><span /><span /><span /><span /></div>
+      </section>
+
       <div className={styles.columns}>
         <section className={styles.card} aria-labelledby="recent-users-heading" aria-busy={loading}>
-          <div className={styles.cardHeading}><div><p className={styles.eyebrow}>Community</p><h2 id="recent-users-heading">New faces, new beginnings</h2></div><Link href="/admin/users">View all <ArrowRight size={15} aria-hidden="true" /></Link></div>
+          <div className={styles.cardHeading}><div><p className={styles.eyebrow}>Community</p><h2 id="recent-users-heading">Recently joined users</h2></div><Link href="/admin/users">View all <ArrowRight size={15} aria-hidden="true" /></Link></div>
           {loading ? <div className={styles.empty} role="status">Loading your community…</div> : error ? <div className={styles.empty}>Recent users are unavailable. Try loading the dashboard again.</div> : !overview?.recentUsers.length ? <div className={styles.empty}><Users size={28} aria-hidden="true" /><h3>Your community starts here</h3><p>Newly registered users will appear here.</p></div> : (
             <ul className={styles.userList}>
               {overview.recentUsers.map(user => (
@@ -108,7 +109,7 @@ export default function DashboardPage() {
         </section>
 
         <section className={styles.card} aria-labelledby="quick-actions-heading">
-          <div className={styles.cardHeading}><div><p className={styles.eyebrow}>Make an impact</p><h2 id="quick-actions-heading">Your next step</h2></div></div>
+          <div className={styles.cardHeading}><div><p className={styles.eyebrow}>Make an impact</p><h2 id="quick-actions-heading">Quick actions</h2></div></div>
           <div className={styles.actions}>
             {actions.map(({ label, description, href, icon: Icon }) => (
               <Link key={href} href={href} className={styles.action}>

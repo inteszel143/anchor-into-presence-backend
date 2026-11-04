@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "@/components/AdminLink";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { Activity, Bell, ChevronRight, FileText, FolderOpen, HelpCircle, LayoutDashboard, LifeBuoy, Menu, Tag, Users, X } from "lucide-react";
+import { Activity, Bell, ChevronRight, FileText, FolderOpen, HelpCircle, LayoutDashboard, LifeBuoy, Menu, Settings, Tag, Users, X } from "lucide-react";
 import styles from "./AdminSidebar.module.css";
 
 const sections = [
@@ -22,6 +22,9 @@ const sections = [
   { label: "Community", links: [
     { label: "Support", href: "/admin/support", icon: LifeBuoy },
     { label: "Notifications", href: "/admin/notification", icon: Bell },
+  ] },
+  { label: "Settings", links: [
+    { label: "App versions", href: "/admin/app-version", icon: Settings },
   ] },
 ];
 

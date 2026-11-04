@@ -118,3 +118,42 @@
 .metric:nth-child(3) .icon { background: #e8e7ef; color: #6c6383; }
 .metric:nth-child(4) .icon { background: #f3e6dc; color: #8a634c; }
 .userList li:nth-child(2n) .avatar { background: #eee7dd; color: #826951; }
+
+/* Keep the overview compact so community activity stays within easy reach. */
+.page { container-type: inline-size; padding-bottom: 32px; }
+.metrics { margin-bottom: 24px; }
+.metric { padding: 20px; }
+.metric > strong { margin-top: 12px; }
+.metricLink { margin-top: 12px; padding-top: 12px; }
+.welcome { min-height: 0; padding: 24px 28px; margin-bottom: 24px; border-radius: 18px; }
+.welcomeCopy { max-width: min(75%, 640px); }
+.welcome h2 { margin: 10px 0 8px; font-size: clamp(24px, 2.2vw, 30px); }
+.welcome p { max-width: 540px; }
+.welcome a { margin-top: 4px; }
+.garden { right: -35px; bottom: -100px; transform: scale(.8); transform-origin: bottom right; }
+.columns { grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 24px; }
+.userList li { padding-block: 18px; }
+.cardHeading { padding: 20px 24px; }
+.action { padding-block: 16px; }
+@container (max-width: 900px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .columns { grid-template-columns: minmax(0, 1fr); }
+  .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+  .action:nth-child(2) { border-top: 0; }
+}
+@container (max-width: 520px) {
+  .welcome { padding: 22px; }
+  .welcomeCopy { max-width: 100%; }
+  .welcomeLabel { align-items: flex-start; line-height: 1.6; }
+  .welcomeLabel svg { flex-shrink: 0; margin-top: 2px; }
+  .garden { display: none; }
+  .actions { grid-template-columns: minmax(0, 1fr); }
+  .action:nth-child(2) { border-top: 1px solid var(--admin-border, #e5e0d7); }
+  .userList li { flex-wrap: wrap; }
+  .identity { flex: 1; }
+  .date { width: 100%; margin-left: 52px; }
+}
+@container (max-width: 320px) {
+  .metrics { grid-template-columns: minmax(0, 1fr); }
+  .sectionIntro { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
