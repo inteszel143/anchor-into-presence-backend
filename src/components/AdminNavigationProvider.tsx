@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 type NavigationOptions = { replace?: boolean; scroll?: boolean };
 const NavigationContext = createContext<((href: string, options: NavigationOptions) => void) | null>(null);
@@ -13,10 +14,11 @@ export function useAdminNavigation() {
 }
 
 export default function AdminNavigationProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
+
   function navigate(href: string, options: NavigationOptions) {
-    // Document navigation lets the browser own the tab's native loading spinner.
-    if (options.replace) window.location.replace(href);
-    else window.location.assign(href);
+    if (options.replace) router.replace(href, { scroll: options.scroll });
+    else router.push(href, { scroll: options.scroll });
   }
 
   return <NavigationContext.Provider value={navigate}>
