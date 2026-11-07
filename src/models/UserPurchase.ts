@@ -7,6 +7,9 @@ const UserPurchaseSchema = new mongoose.Schema(
       ref: "users",
       required: true,
     },
+    // Only new/reconciled writes have this key, so legacy duplicate rows do not
+    // prevent creating the unique index needed for concurrent retries.
+    deliveryKey: { type: String, select: false },
     purchaseId: {
       type: String,
     },
@@ -39,4 +42,8 @@ const UserPurchaseSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+UserPurchaseSchema.index({ deliveryKey: 1 }, {
+  unique: true,
+  partialFilterExpression: { deliveryKey: { $type: "string" } },
+});
 export const UserPurchase = mongoose.models.user_purchase || mongoose.model("user_purchase", UserPurchaseSchema);

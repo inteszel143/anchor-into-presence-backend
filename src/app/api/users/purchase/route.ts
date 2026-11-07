@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getAuthUser } from "@/lib/getAuthUser";
@@ -55,10 +56,10 @@ export async function POST(req: NextRequest) {
 
   const { userId } = await getAuthUser(req);
 
-  const { productId, purchaseId, activityId, amount, purchaseDate, planType, currencySymbol, platform, purchaseToken } =
+  const { productId, purchaseId, amount, purchaseDate, planType, currencySymbol, platform, purchaseToken } =
     await req.json();
 
-  if (!productId || !purchaseId || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || !purchaseDate || !planType || !currencySymbol) {
+  if (typeof productId !== "string" || !productId || typeof purchaseId !== "string" || !purchaseId || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || !purchaseDate || !planType || !currencySymbol) {
     return NextResponse.json(
       { message: "All fields are required", status: false },
       { status: 400 }
@@ -72,17 +73,45 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await UserPurchase.create({
-      userId,
-      productId,
-      purchaseId,
-      amount,
-      purchaseDate,
-      planType,
+    const date = new Date(purchaseDate);
+    if (!Number.isFinite(date.getTime()) || date.getTime() > Date.now() + 300000 ||
+        !["monthly", "yearly", "lifetime"].includes(planType)) {
+      return NextResponse.json({ message: "Invalid purchase details", status: false }, { status: 400 });
+    }
+    // Transaction IDs identify delivery, not campaign usage. Restore/retry must
+    // return success for the same account without inserting another purchase.
+    const store = platform ?? (purchaseId.startsWith("GPA.") ? "android" : "ios");
+    const deliveryKey = createHash("sha256").update(`${store}:${purchaseId}`).digest("hex");
+    await UserPurchase.init(); // Ensure the unique retry key exists before writes.
+    const existing = await UserPurchase.findOne({ purchaseId,
+      $or: [{ platform: store }, { platform: { $exists: false } }],
+    }).select("userId").lean<{ _id: unknown; userId: unknown } | null>();
+    if (existing && String(existing.userId) !== String(userId)) {
+      return NextResponse.json({ message: "This purchase is already associated with another account.", status: false }, { status: 409 });
+    }
+    const values = {
+      userId, productId, purchaseId, amount, purchaseDate: date, planType,
       currencySymbol,
-      ...(platform ? { platform } : {}),
-      ...(purchaseToken ? { purchaseToken } : {}),
-    });
+    };
+    try {
+      const saved = await UserPurchase.findOneAndUpdate(
+        existing ? { _id: existing._id, userId } : { deliveryKey, userId },
+        { $setOnInsert: values, $set: { deliveryKey, platform: store,
+          ...(purchaseToken ? { purchaseToken } : {}),
+        } },
+        { upsert: true, new: true, runValidators: true },
+      );
+      if (String(saved.userId) !== String(userId)) {
+        return NextResponse.json({ message: "This purchase is already associated with another account.", status: false }, { status: 409 });
+      }
+    } catch (error) {
+      if ((error as { code?: number }).code !== 11000) throw error;
+      // Another request may win the upsert race. Only its owner can retry it.
+      const saved = await UserPurchase.findOne({ deliveryKey }).select("userId").lean<{ _id: unknown; userId: unknown } | null>();
+      if (!saved || String(saved.userId) !== String(userId)) {
+        return NextResponse.json({ message: "This purchase is already associated with another account.", status: false }, { status: 409 });
+      }
+    }
 
     return NextResponse.json(
       { message: "Purchased successfully", data: {}, status: true },

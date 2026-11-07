@@ -140,15 +140,30 @@ test('saved purchase tokens are excluded from normal model queries', () => {
   const mongoose = new Mongoose();
   const { UserPurchase } = load('src/models/UserPurchase.ts', { mongoose });
   assert.equal(UserPurchase.schema.path('purchaseToken').options.select, false);
+  const index = UserPurchase.schema.indexes().find(([keys]) => keys.deliveryKey === 1);
+  assert.equal(index[1].unique, true);
+  assert.equal(index[1].partialFilterExpression.deliveryKey.$type, 'string');
 });
-test('purchase endpoint accepts free Android offers and legacy clients, rejects malformed tokens', async () => {
+test('purchase endpoint accepts free offers, deduplicates retries, and rejects another account', async () => {
   const writes = [];
+  let userId = 'u';
   const { POST } = load('src/app/api/users/purchase/route.ts', {
+    'node:crypto': crypto,
     'next/server': { NextResponse },
     '@/lib/db': { connectDB: async () => {} },
-    '@/lib/getAuthUser': { getAuthUser: async () => ({ userId: 'u' }) },
-    '@/lib/apiResponse': { apiErrorResponse: () => Response.json({}, { status: 500 }) },
-    '@/models/UserPurchase': { UserPurchase: { create: async value => writes.push(value) } },
+    '@/lib/getAuthUser': { getAuthUser: async () => ({ userId }) },
+    '@/lib/apiResponse': { apiErrorResponse: error => { throw error; } },
+    '@/models/UserPurchase': { UserPurchase: {
+      init: async () => {},
+      findOne: query => ({ select: () => ({ lean: async () =>
+        writes.find(row => query.deliveryKey ? row.deliveryKey === query.deliveryKey : row.purchaseId === query.purchaseId) ?? null }) }),
+      findOneAndUpdate: async (query, update) => {
+        let row = writes.find(row => query._id ? row._id === query._id : row.deliveryKey === query.deliveryKey);
+        if (!row) { row = { _id: 'p' + writes.length, ...update.$setOnInsert }; writes.push(row); }
+        Object.assign(row, update.$set);
+        return row;
+      },
+    } },
   });
   const body = { productId: 'annual', purchaseId: 'GPA.123', amount: 0, purchaseDate: '2026-01-01T00:00:00Z', planType: 'yearly', currencySymbol: 'USD' };
   const post = value => POST({ json: async () => value });
@@ -157,10 +172,14 @@ test('purchase endpoint accepts free Android offers and legacy clients, rejects 
   assert.equal(writes[0].purchaseToken, 'secret-token');
   assert.ok(!JSON.stringify(await response.json()).includes('secret-token'));
   assert.equal((await post(body)).status, 201);
-  for (const extra of [{ platform: 'ios', purchaseToken: 't' }, { purchaseToken: 't' }, { platform: 'android', purchaseToken: {} }, { platform: 'android', purchaseToken: ' ' }, { amount: -1 }, { amount: '0' }]) {
+  assert.equal(writes.length, 1, 'restore does not insert a duplicate');
+  for (const extra of [{ platform: 'ios', purchaseToken: 't' }, { purchaseToken: 't' }, { platform: 'android', purchaseToken: {} }, { platform: 'android', purchaseToken: ' ' }, { amount: -1 }, { amount: '0' }, { purchaseDate: 'bad' }, { planType: 'unknown' }]) {
     assert.equal((await post({ ...body, ...extra })).status, 400);
   }
-  assert.equal(writes.length, 2);
+  userId = 'other';
+  assert.equal((await post(body)).status, 409);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].userId, 'u');
 });
 
 test('renewal settings and regular price are separate from current discount phase', () => {
@@ -174,4 +193,24 @@ test('renewal settings and regular price are separate from current discount phas
   assert.equal(discounted.regularPrice, 'USD 59.99');
   assert.equal(discounted.pricingPhase, 'Discounted');
   assert.equal(row({ autoRenewingPlan: { autoRenewEnabled: false }, offerPhase: { basePrice: {} } }).pricingPhase, 'Regular price');
+});
+
+test('a concurrent unique-key conflict succeeds only for the winning account', async () => {
+  let winner = 'u';
+  const { POST } = load('src/app/api/users/purchase/route.ts', {
+    'node:crypto': crypto,
+    'next/server': { NextResponse },
+    '@/lib/db': { connectDB: async () => {} },
+    '@/lib/getAuthUser': { getAuthUser: async () => ({ userId: 'u' }) },
+    '@/lib/apiResponse': { apiErrorResponse: error => { throw error; } },
+    '@/models/UserPurchase': { UserPurchase: {
+      init: async () => {},
+      findOne: query => ({ select: () => ({ lean: async () => query.deliveryKey ? { userId: winner } : null }) }),
+      findOneAndUpdate: async () => { throw { code: 11000 }; },
+    } },
+  });
+  const req = { json: async () => ({ productId: 'annual', purchaseId: 'apple-1', amount: 0, purchaseDate: '2026-01-01', planType: 'yearly', currencySymbol: 'USD' }) };
+  assert.equal((await POST(req)).status, 201);
+  winner = 'other';
+  assert.equal((await POST(req)).status, 409);
 });
