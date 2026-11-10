@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const userProfile = await User.findById(user.userId)
     .select("-password")
-    .lean();
+    .lean<{ [key: string]: unknown; redemptionYearlyExpiresAt?: Date } | null>();
 
   if (!userProfile) {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
@@ -50,9 +50,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const complimentaryActive = userProfile.redemptionYearlyExpiresAt &&
+    new Date(userProfile.redemptionYearlyExpiresAt) > new Date();
+  const productId = subscriptionStatus !== "active" && complimentaryActive
+    ? "complimentary.yearly" : latestPurchase?.productId;
+  if (complimentaryActive) subscriptionStatus = "active";
+
   return NextResponse.json({
     message: "Profile fetched",
-    data: { ...userProfile, subscriptionStatus, productId: latestPurchase?.productId },
+    data: { ...userProfile, subscriptionStatus, productId },
     status: true,
   });
 }

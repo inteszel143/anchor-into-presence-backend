@@ -11,6 +11,8 @@ const UserSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     resetPassword: { type: Boolean, default: false },
     userMood: String,
+    redemptionYearlyGrantedAt: Date,
+    redemptionYearlyExpiresAt: Date,
     otp: String,
     otpExpiresAt: Date,
     fcmToken: String,
@@ -28,6 +30,9 @@ for (const name of ["User", "user", "users"]) {
   const cachedModel = mongoose.models[name];
   if (cachedModel && !cachedModel.schema.path("deletionPending")) {
     cachedModel.schema.add({ deletionPending: { type: Boolean, default: false }, deletionPlan: { type: mongoose.Schema.Types.Mixed, default: null, select: false } });
+  }
+  if (cachedModel && !cachedModel.schema.path("redemptionYearlyExpiresAt")) {
+    cachedModel.schema.add({ redemptionYearlyGrantedAt: Date, redemptionYearlyExpiresAt: Date });
   }
   if (cachedModel && !cachedModel.schema.path("isTestAccount")) {
     cachedModel.schema.add({ isTestAccount: { type: Boolean, default: false } });
