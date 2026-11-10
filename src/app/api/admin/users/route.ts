@@ -55,15 +55,15 @@ export async function GET(req: NextRequest) {
           { $sort: { createdAt: -1, _id: -1 } },
           { $skip: (page - 1) * limit },
           { $limit: limit },
-          { $project: { name: 1, email: 1, image: 1, isBlocked: 1, isTestAccount: 1, createdAt: 1, purchase: 1 } },
+          { $project: { name: 1, email: 1, image: 1, isBlocked: 1, isTestAccount: 1, createdAt: 1, redemptionYearlyExpiresAt: 1, purchase: 1 } },
         ],
         count: [{ $count: "total" }],
       } },
     ]);
     const total = result?.count[0]?.total ?? 0;
     return NextResponse.json({
-      users: (result?.users ?? []).map(({ purchase, ...user }: { purchase?: Parameters<typeof estimateAdminSubscription>[0] }) => ({
-        ...user, subscription: estimateAdminSubscription(purchase, now),
+      users: (result?.users ?? []).map(({ purchase, ...user }: { purchase?: Parameters<typeof estimateAdminSubscription>[0]; redemptionYearlyExpiresAt?: Date }) => ({
+        ...user, subscription: estimateAdminSubscription(purchase, now, user.redemptionYearlyExpiresAt),
       })),
       total, page, totalPages: Math.ceil(total / limit),
     });
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
 
   const total = await User.countDocuments(query);
   const users = await User.find(query)
-    .select("name email image isBlocked isTestAccount createdAt")
+    .select("name email image isBlocked isTestAccount createdAt redemptionYearlyExpiresAt")
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit)
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
   ]) : [];
   const byUser = new Map(purchases.map(purchase => [String(purchase._id), purchase]));
   return NextResponse.json({
-    users: users.map(user => ({ ...user, subscription: estimateAdminSubscription(byUser.get(String(user._id)), now) })),
+    users: users.map(user => ({ ...user, subscription: estimateAdminSubscription(byUser.get(String(user._id)), now, user.redemptionYearlyExpiresAt) })),
     total,
     page,
     totalPages: Math.ceil(total / limit),

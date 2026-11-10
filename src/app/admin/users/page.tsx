@@ -186,7 +186,7 @@ export default function AdminUserListPage() {
         <div className={styles.summaryHeading}><h2>Account overview</h2><span>All accounts · independent of table filters</span></div>
         <div className={styles.summaryGrid}>
           <div className={styles.summaryCard}><span>Registered accounts</span><strong>{summary ? summary.totalAccounts.toLocaleString() : "—"}</strong><p>Includes unverified signups and test accounts. App downloads aren’t tracked here.</p></div>
-          <div className={styles.summaryCard}><span>Estimated active subscriptions</span><strong>{summary ? summary.estimatedActiveSubscriptions.toLocaleString() : "—"}</strong><p>Unique accounts with a current recorded plan, excluding marked test accounts.</p></div>
+          <div className={styles.summaryCard}><span>Estimated active subscriptions</span><strong>{summary ? summary.estimatedActiveSubscriptions.toLocaleString() : "—"}</strong><p>Unique accounts with a current recorded plan or complimentary access, excluding marked test accounts.</p></div>
           <div className={`${styles.summaryCard} ${styles.testSummaryCard}`}><span>Marked test accounts</span><strong>{summary ? summary.testAccounts.toLocaleString() : "—"}</strong><p>Accounts manually reviewed and labeled as tests by an admin.</p></div>
         </div>
         {summaryError && <p role="alert" className={styles.modalError}>{summaryError} <button type="button" className={styles.textButton} onClick={() => setSummaryRefresh(value => value + 1)}>Retry</button></p>}
@@ -233,7 +233,7 @@ export default function AdminUserListPage() {
                   <td><span className={`${styles.badge} ${user.isBlocked ? styles.blocked : styles.active}`}><span aria-hidden="true" />{user.isBlocked ? "Blocked" : "Active"}</span></td>
                   <td><div className={styles.subscriptionCell}>
                     <span className={`${styles.badge} ${subscription?.status === "active" ? styles.active : subscription?.status === "expired" ? styles.expiredSubscription : styles.neutralSubscription}`}>{subscriptionLabel}</span>
-                    <span className={styles.subscriptionDetail}>{subscription?.status === "none" ? "No purchase recorded" : subscription?.status === "unknown" || !subscription ? "Subscription could not be determined" : subscription.plan === "lifetime" ? "Lifetime plan · purchase-based estimate" : `${subscription.plan === "monthly" ? "Monthly" : "Yearly"} plan · ${subscription.status === "expired" ? "Estimated end" : "Estimated until"} ${joinedDate(subscription.estimatedExpiresAt || "")}`}</span>
+                    <span className={styles.subscriptionDetail}>{subscription?.status === "none" ? "No purchase recorded" : subscription?.status === "unknown" || !subscription ? "Subscription could not be determined" : subscription.source === "complimentary" ? `Yearly plan · Complimentary ${subscription.status === "expired" ? "ended" : "until"} ${joinedDate(subscription.estimatedExpiresAt || "")}` : subscription.plan === "lifetime" ? "Lifetime plan · purchase-based estimate" : `${subscription.plan === "monthly" ? "Monthly" : "Yearly"} plan · ${subscription.status === "expired" ? "Estimated end" : "Estimated until"} ${joinedDate(subscription.estimatedExpiresAt || "")}`}</span>
                     {user.isTestAccount && <span className={styles.subscriptionDetail}>Excluded from subscriber totals</span>}
                   </div></td>
                   <td><div className={styles.actions}>

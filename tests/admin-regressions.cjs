@@ -104,7 +104,7 @@ test('users end-date includes the full day and does not return password fields',
   const response = await GET(new NextRequest('http://localhost/api/admin/users?endDate=2026-10-04'));
   assert.equal(response.status, 200);
   assert.equal(query.createdAt.$lte.toISOString(), '2026-10-04T23:59:59.999Z');
-  assert.equal(selection, 'name email image isBlocked isTestAccount createdAt');
+  assert.equal(selection, 'name email image isBlocked isTestAccount createdAt redemptionYearlyExpiresAt');
 });
 
 test('test account labels are explicit, reversible, and cannot change account access', async () => {
@@ -253,7 +253,7 @@ test('active user filter applies before pagination and uses the overview subscri
   assert.deepEqual(pipeline[0].$match.isTestAccount, { $ne: true });
   assert.equal(pipeline[0].$match.$or[0].name.$regex, 'Member');
   assert.equal(pipeline[0].$match.createdAt.$lte.toISOString(), '2026-10-24T23:59:59.999Z');
-  const now = pipeline[3].$set.estimatedActive.$and[1].$lte[1];
+  const now = pipeline[3].$set.estimatedActive.$or[1].$and[1].$lte[1];
   assert.deepEqual(pipeline.slice(1, 4), summary.adminUserSubscriptionPipeline('purchases', now));
   assert.deepEqual(pipeline[4], { $match: { estimatedActive: true } });
   assert.deepEqual(pipeline[5].$facet.users.slice(1, 3), [{ $skip: 10 }, { $limit: 10 }]);
@@ -288,4 +288,68 @@ test('test and registered filters constrain counts and rows consistently; invali
       assert.equal((await response.json()).total, 0);
     }
   }
+});
+
+test('complimentary yearly access reports active, expired, and exact expiry without overriding paid access', () => {
+  const { estimateAdminSubscription: estimate } = loadModule('src/lib/adminSubscriptionStatus.ts');
+  const now = new Date('2026-11-10T12:00:00Z');
+  const expiry = new Date('2027-11-10T12:00:00Z');
+  const expired = { planType: 'monthly', purchaseDate: new Date('2025-01-01') };
+  for (const purchase of [null, expired]) {
+    assert.deepEqual(estimate(purchase, now, expiry), {
+      status: 'active', plan: 'yearly', source: 'complimentary', estimatedExpiresAt: expiry.toISOString(),
+    });
+  }
+  assert.equal(estimate(null, now, now).status, 'expired');
+  assert.equal(estimate(null, now, new Date('2025-01-01')).status, 'expired');
+  assert.equal(estimate(null, now, 'invalid').status, 'none');
+  const paid = { planType: 'monthly', purchaseDate: now };
+  assert.deepEqual(estimate(paid, now, expiry), estimate(paid, now));
+});
+
+for (const accountType of ['registered', 'test', 'active']) {
+  test(`admin ${accountType} rows include complimentary yearly access`, async () => {
+    const expiry = new Date(Date.now() + 86400000);
+    const record = { _id: 'member', redemptionYearlyExpiresAt: expiry };
+    const status = loadModule('src/lib/adminSubscriptionStatus.ts');
+    const summary = loadModule('src/lib/adminUserSummary.ts', { './adminSubscriptionStatus': status });
+    const chain = {
+      select: fields => { assert.match(fields, /redemptionYearlyExpiresAt/); return chain; },
+      sort: () => chain, skip: () => chain, limit: () => chain, lean: async () => [record],
+    };
+    const { GET } = loadModule('src/app/api/admin/users/route.ts', {
+      '@/lib/db': { connectDB: async () => {} },
+      '@/models/User': { User: {
+        find: () => chain, countDocuments: async () => 1,
+        aggregate: async pipeline => {
+          assert.equal(pipeline.at(-1).$facet.users.at(-1).$project.redemptionYearlyExpiresAt, 1);
+          return [{ users: [record], count: [{ total: 1 }] }];
+        },
+      } },
+      '@/models/UserPurchase': { UserPurchase: { collection: { name: 'purchases' }, aggregate: async () => [] } },
+      '@/lib/adminSubscriptionStatus': status, '@/lib/adminUserSummary': summary,
+    });
+    const data = await (await GET(new NextRequest(`http://localhost/api/admin/users?accountType=${accountType}`))).json();
+    assert.equal(data.total, 1);
+    assert.equal(data.users[0].subscription.status, 'active');
+    assert.equal(data.users[0].subscription.plan, 'yearly');
+    assert.equal(data.users[0].subscription.source, 'complimentary');
+    assert.equal(data.users[0].subscription.estimatedExpiresAt, expiry.toISOString());
+  });
+}
+
+test('active filter and totals share the complimentary expiry condition and exclude test accounts from totals', () => {
+  const status = loadModule('src/lib/adminSubscriptionStatus.ts');
+  const summary = loadModule('src/lib/adminUserSummary.ts', { './adminSubscriptionStatus': status });
+  const now = new Date();
+  const active = summary.adminUserSubscriptionPipeline('purchases', now);
+  const totals = summary.adminUserSummaryPipeline('purchases', now);
+  assert.deepEqual(totals.slice(0, active.length), active);
+  assert.deepEqual(active[2].$set.estimatedActive.$or[0], { $and: [
+    { $eq: [{ $type: '$redemptionYearlyExpiresAt' }, 'date'] },
+    { $gt: ['$redemptionYearlyExpiresAt', now] },
+  ] });
+  assert.deepEqual(totals[3].$group.estimatedActiveSubscriptions.$sum.$cond[0].$and, [
+    { $ne: [{ $ifNull: ['$isTestAccount', false] }, true] }, '$estimatedActive',
+  ]);
 });
