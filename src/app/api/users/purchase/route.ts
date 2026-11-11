@@ -1,7 +1,10 @@
+import { subscriptionPlan } from "@/lib/subscriptionPlan";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getAuthUser } from "@/lib/getAuthUser";
+import { User } from "@/models/User";
+import { complimentaryBillingRecord } from "@/lib/complimentaryBillingHistory";
 import { UserPurchase } from "@/models/UserPurchase";
 import { apiErrorResponse } from "@/lib/apiResponse";
 
@@ -27,17 +30,26 @@ export async function GET(req: NextRequest) {
       ...(query && { name: { $regex: query, $options: "i" } }), // optional search
     };
 
-    // Fetch data + count in parallel
-    const [PurchaseHistory, total] = await Promise.all([
-      UserPurchase.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    const user = await User.findById(userId)
+      .select("redemptionYearlyGrantedAt redemptionYearlyExpiresAt")
+      .lean<{ redemptionYearlyGrantedAt?: Date; redemptionYearlyExpiresAt?: Date } | null>();
+    const grant = complimentaryBillingRecord(String(userId), user);
+    const includeGrant = grant && (!query || new RegExp(query, "i").test("Complimentary yearly annual membership"));
+    // Fetch the prefix before slicing so the grant participates in pagination
+    // exactly once, even when it falls between store purchase records.
+    const [purchases, purchaseCount] = await Promise.all([
+      UserPurchase.find(filter).sort({ createdAt: -1, _id: -1 }).limit(skip + limit).lean(),
       UserPurchase.countDocuments(filter),
     ]);
-
+    const history = [...purchases, ...(includeGrant ? [grant] : [])]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(skip, skip + limit);
+    const total = purchaseCount + (includeGrant ? 1 : 0);
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
       message: "User purchase for today",
-      data: PurchaseHistory,
+      data: history.map(record => ({ ...record, planType: subscriptionPlan(record.productId, record.planType) })),
       pagination: {
         page,
         limit,
@@ -90,7 +102,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "This purchase is already associated with another account.", status: false }, { status: 409 });
     }
     const values = {
-      userId, productId, purchaseId, amount, purchaseDate: date, planType,
+      userId, productId, purchaseId, amount, purchaseDate: date, planType: subscriptionPlan(productId, planType),
       currencySymbol,
     };
     try {

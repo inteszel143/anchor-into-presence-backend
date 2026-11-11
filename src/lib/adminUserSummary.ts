@@ -1,3 +1,4 @@
+import { MONTHLY_PRODUCT_IDS, YEARLY_PRODUCT_IDS } from "./subscriptionPlan";
 import type { PipelineStage } from "mongoose";
 import { SUBSCRIPTION_PLAN_DAYS } from "./adminSubscriptionStatus";
 
@@ -12,7 +13,13 @@ export function adminUserSubscriptionPipeline(purchaseCollection: string, now: D
         { $match: { $expr: { $eq: ["$userId", "$$accountId"] } } },
         { $sort: { purchaseDate: -1, _id: -1 } },
         { $limit: 1 },
-        { $project: { _id: 0, planType: 1, purchaseDate: 1 } },
+        { $set: { planType: { $switch: {
+          branches: [
+            { case: { $in: ["$productId", MONTHLY_PRODUCT_IDS] }, then: "monthly" },
+            { case: { $in: ["$productId", YEARLY_PRODUCT_IDS] }, then: "yearly" },
+          ], default: "$planType",
+        } } } },
+        { $project: { _id: 0, planType: 1, productId: 1, purchaseDate: 1 } },
       ],
       as: "latestPurchase",
     } },

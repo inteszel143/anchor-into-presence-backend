@@ -12,6 +12,7 @@ function loadModule(file, mocks = {}) {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', compiled)(name => {
     if (name in mocks) return mocks[name];
+    if (name === './subscriptionPlan') return loadModule('src/lib/subscriptionPlan.ts');
     if (name.startsWith('@/')) throw new Error(`Unexpected application dependency: ${name}`);
     return require(name);
   }, module, module.exports);
@@ -221,7 +222,7 @@ test('user directory attaches subscription estimates by account without conflati
   const { GET } = loadModule('src/app/api/admin/users/route.ts', {
     '@/lib/db': { connectDB: async () => {} },
     '@/models/User': { User: { countDocuments: async () => 2, find: () => chain } },
-    '@/models/UserPurchase': { UserPurchase: { aggregate: async stages => { pipeline = stages; return [{ _id: 'two', planType: 'monthly', purchaseDate: new Date() }]; } } },
+    '@/models/UserPurchase': { UserPurchase: { aggregate: async stages => { pipeline = stages; return [{ _id: 'two', planType: 'monthly', purchaseDate: new Date(Date.now() - 1000) }]; } } },
     '@/lib/adminUserSummary': {}, '@/lib/adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts'),
   });
   const response = await GET(new NextRequest('http://localhost/api/admin/users'));
@@ -352,4 +353,16 @@ test('active filter and totals share the complimentary expiry condition and excl
   assert.deepEqual(totals[3].$group.estimatedActiveSubscriptions.$sum.$cond[0].$and, [
     { $ne: [{ $ifNull: ['$isTestAccount', false] }, true] }, '$estimatedActive',
   ]);
+});
+
+test('known monthly product overrides a stale yearly label, even with complimentary yearly access', () => {
+  const { estimateAdminSubscription: estimate } = loadModule('src/lib/adminSubscriptionStatus.ts');
+  const now = new Date('2026-11-11T00:00:00Z');
+  for (const productId of ['com.mindfull.premium.month', 'com.mindfully.premium.monthly.consumable']) {
+    const result = estimate({ productId, planType: 'yearly', purchaseDate: new Date('2026-11-10') }, now, new Date('2027-11-10'));
+    assert.equal(result.status, 'active');
+    assert.equal(result.plan, 'monthly');
+    assert.equal(result.source, undefined);
+    assert.equal(result.estimatedExpiresAt, '2026-12-10T00:00:00.000Z');
+  }
 });

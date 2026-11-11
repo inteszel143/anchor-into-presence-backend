@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
   const purchases = users.length ? await UserPurchase.aggregate([
     { $match: { userId: { $in: users.map(user => user._id) } } },
     { $sort: { purchaseDate: -1, _id: -1 } },
-    { $group: { _id: "$userId", planType: { $first: "$planType" }, purchaseDate: { $first: "$purchaseDate" } } },
+    { $group: { _id: "$userId", planType: { $first: "$planType" }, productId: { $first: "$productId" }, purchaseDate: { $first: "$purchaseDate" } } },
   ]) : [];
   const byUser = new Map(purchases.map(purchase => [String(purchase._id), purchase]));
   return NextResponse.json({
