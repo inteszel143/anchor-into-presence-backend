@@ -11,7 +11,7 @@ const sections = [
   { label: "Overview", links: [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { label: "Users", href: "/admin/users", icon: Users },
-    { label: "Promotional offers", href: "/admin/offers", icon: Tag },
+    { label: "Subscriptions & offers", href: "/admin/offers", icon: Tag },
   ] },
   { label: "Library", links: [
     { label: "Activities", href: "/admin/activities", icon: Activity },

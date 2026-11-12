@@ -14,9 +14,9 @@ export function OfferMetricSkeleton() {
   return <span className={`${styles.skeleton} ${styles.skeletonValue}`} aria-hidden="true" />;
 }
 
-export function OfferTableSkeleton({ columns = 6 }: { columns?: number }) {
+export function OfferTableSkeleton({ columns = 6, label = "Loading promotional offers…" }: { columns?: number; label?: string }) {
   return <div role="status">
-    <span className={styles.srOnly}>Loading promotional offers…</span>
+    <span className={styles.srOnly}>{label}</span>
     <div aria-hidden="true">
       <div className={`${shared.filters} ${styles.skeletonFilters}`}>
         {Array.from({ length: 4 }, (_, index) => <div key={index}>

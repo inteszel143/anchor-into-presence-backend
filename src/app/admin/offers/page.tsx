@@ -8,6 +8,7 @@ import type { OfferHistory, OfferTransaction, StoreEnvironment } from "@/lib/app
 import shared from "../users/users.module.css";
 import styles from "./offers.module.css";
 import { OfferMetricSkeleton, OfferNoticeSkeleton, OfferTableSkeleton } from "./OfferSkeleton";
+import AppleSubscribersReport from "./AppleSubscribersReport";
 import GoogleOffersReport from "./GoogleOffersReport";
 
 function displayDate(value: number | null) {
@@ -22,12 +23,19 @@ function periodStatus(row: OfferTransaction, now: number) {
 
 export default function PromotionalOffersPage() {
   const [platform, setPlatform] = useState<"apple" | "google">("apple");
+  const [view, setView] = useState<"subscribers" | "offers">("subscribers");
   return <>
     <div className={styles.platforms} role="group" aria-label="Store platform">
       <button type="button" aria-pressed={platform === "apple"} onClick={() => setPlatform("apple")}><Image src="/assets/images/apple-icon.svg" alt="" width={18} height={20} aria-hidden="true" />Apple App Store</button>
       <button type="button" aria-pressed={platform === "google"} onClick={() => setPlatform("google")}><Image src="/assets/images/google-icon.svg" alt="" width={18} height={20} aria-hidden="true" />Google Play</button>
     </div>
-    {platform === "apple" ? <AppleOffersReport /> : <GoogleOffersReport />}
+    {platform === "apple" ? <>
+      <div className={styles.platforms} role="group" aria-label="Apple report">
+        <button type="button" aria-pressed={view === "subscribers"} onClick={() => setView("subscribers")}>Subscribers</button>
+        <button type="button" aria-pressed={view === "offers"} onClick={() => setView("offers")}>Promotional offers</button>
+      </div>
+      {view === "subscribers" ? <AppleSubscribersReport /> : <AppleOffersReport />}
+    </> : <GoogleOffersReport />}
   </>;
 }
 

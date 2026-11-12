@@ -12,7 +12,7 @@ import { toast } from "react-toastify";
 
 const AdminHeader = () => {
   const pathname = usePathname();
-  const section = ({ dashboard: "Dashboard", users: "Users", offers: "Promotional offers", activities: "Activities", category: "Categories", content: "Content", faq: "FAQs", support: "Support", notification: "Notifications", profile: "Profile", "reset-password": "Reset password" } as Record<string, string>)[pathname.split("/")[2]] || "Workspace";
+  const section = ({ dashboard: "Dashboard", users: "Users", offers: "Subscriptions & offers", activities: "Activities", category: "Categories", content: "Content", faq: "FAQs", support: "Support", notification: "Notifications", profile: "Profile", "reset-password": "Reset password" } as Record<string, string>)[pathname.split("/")[2]] || "Workspace";
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const [showDropdown, setShowDropdown] = useState(false);
 

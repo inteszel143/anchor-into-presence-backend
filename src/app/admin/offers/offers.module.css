@@ -61,3 +61,4 @@
 .reviewButton { color: var(--admin-text, #4b473f); border-color: var(--admin-border, #e5e0d7); }
 .reviewButton:hover { background: var(--admin-soft, #eeece5); }
 .controls select { background: var(--admin-surface, #fffdfa); border-color: var(--admin-border, #e5e0d7); color: var(--admin-text, #4b473f); }
+.subscriptionItem + .subscriptionItem { margin-top: 14px; }

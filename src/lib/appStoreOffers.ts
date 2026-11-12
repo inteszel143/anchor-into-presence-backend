@@ -38,7 +38,7 @@ function decode(value: unknown): jwt.JwtPayload {
   return payload;
 }
 
-export async function getAppStoreOffers(environment: StoreEnvironment): Promise<OfferHistory> {
+export async function createAppStoreClient(environment: StoreEnvironment) {
   const { APPLE_ISSUER_ID, APPLE_KEY_ID, APPLE_BUNDLE_ID, APPLE_PRIVATE_KEY_PATH } = process.env;
   if (!APPLE_ISSUER_ID || !APPLE_KEY_ID || !APPLE_BUNDLE_ID || !APPLE_PRIVATE_KEY_PATH) {
     throw new AppStoreError("App Store credentials are not configured on this server.");
@@ -54,6 +54,15 @@ export async function getAppStoreOffers(environment: StoreEnvironment): Promise<
     throw new AppStoreError("The App Store signing key is unavailable or invalid on this server.");
   }
   const host = environment === "production" ? "https://api.storekit.apple.com" : "https://api.storekit-sandbox.apple.com";
+  return (endpoint: string, options: RequestInit = {}) => fetch(new URL(endpoint, host), {
+    ...options, redirect: "error", cache: "no-store",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+}
+
+export async function getAppStoreOffers(environment: StoreEnvironment): Promise<OfferHistory> {
+  const request = await createAppStoreClient(environment);
+  const { APPLE_BUNDLE_ID } = process.env;
   const endDate = Date.now();
   const startDate = endDate - (environment === "production" ? 180 : 30) * 86400000 + 60000;
   const transactions = new Map<string, { signedDate: number; row: OfferTransaction }>();
@@ -64,11 +73,10 @@ export async function getAppStoreOffers(environment: StoreEnvironment): Promise<
   for (let page = 0; ; page++) {
     // Fail explicitly rather than presenting partial totals as complete.
     if (page >= 100) throw new AppStoreError("Too much notification history to load at once. A background sync is needed.");
-    const url = new URL("/inApps/v1/notifications/history", host);
+    const url = new URL("/inApps/v1/notifications/history", "https://apple.invalid");
     if (paginationToken) url.searchParams.set("paginationToken", paginationToken);
-    const response = await fetch(url, {
+    const response = await request(url.pathname + url.search, {
       method: "POST", redirect: "error", cache: "no-store", signal,
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ startDate, endDate }),
     });
     if (!response.ok) throw new AppStoreError(`Apple could not load offer history (HTTP ${response.status}).`);
