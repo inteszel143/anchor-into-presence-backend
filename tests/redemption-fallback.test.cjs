@@ -21,6 +21,7 @@ function load(file, modules) {
 function fixture({ session = { userId: '507f1f77bcf86cd799439011' }, user = {} } = {}) {
   let writes = 0;
   const modules = {
+    '@/lib/subscriptionPlan': load('lib/subscriptionPlan.ts', {}),
     'next/server': { NextResponse },
     '@/lib/db': { connectDB: async () => {} },
     '@/lib/getUserFromRequest': { getUserFromRequest: async () => session },
@@ -40,6 +41,24 @@ function fixture({ session = { userId: '507f1f77bcf86cd799439011' }, user = {} }
   };
   return { modules, user, writes: () => writes,
     route: load('app/api/users/purchase/redemption-fallback/route.ts', modules) };
+}
+
+for (const productId of ['com.mindfully.premium.monthly.consumable', 'com.mindfull.premium.monthly.consumable:base-plan', 'com.mindfull.premium.month']) {
+  for (const age of [1, 31]) {
+    test(`profile uses monthly duration for stale yearly record: ${productId}, age ${age}`, async () => {
+      const f = fixture();
+      f.modules.mongoose = mongoose;
+      f.modules['@/models/UserPurchase'] = { UserPurchase: {
+        findOne: () => ({ sort: () => ({ lean: async () => ({
+          productId, planType: 'yearly', purchaseDate: new Date(Date.now() - age * 86400000),
+        }) }) }),
+      } };
+      const route = load('app/api/users/profile/route.ts', f.modules);
+      const body = await (await route.GET({})).json();
+      assert.equal(body.data.subscriptionStatus, age < 30 ? 'active' : 'expired');
+      assert.equal(body.data.productId, productId);
+    });
+  }
 }
 test('grant uses authenticated account and server dates; concurrent retries do not extend it', async () => {
   const f = fixture();

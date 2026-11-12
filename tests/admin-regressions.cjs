@@ -358,7 +358,7 @@ test('active filter and totals share the complimentary expiry condition and excl
 test('known monthly product overrides a stale yearly label, even with complimentary yearly access', () => {
   const { estimateAdminSubscription: estimate } = loadModule('src/lib/adminSubscriptionStatus.ts');
   const now = new Date('2026-11-11T00:00:00Z');
-  for (const productId of ['com.mindfull.premium.month', 'com.mindfully.premium.monthly.consumable']) {
+  for (const productId of ['com.mindfull.premium.month', 'com.mindfully.premium.monthly.consumable', 'com.mindfull.premium.monthly.consumable:base-plan']) {
     const result = estimate({ productId, planType: 'yearly', purchaseDate: new Date('2026-11-10') }, now, new Date('2027-11-10'));
     assert.equal(result.status, 'active');
     assert.equal(result.plan, 'monthly');

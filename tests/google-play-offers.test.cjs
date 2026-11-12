@@ -168,11 +168,12 @@ test('purchase endpoint accepts free offers, deduplicates retries, and rejects a
       },
     } },
   });
-  const body = { productId: 'annual', purchaseId: 'GPA.123', amount: 0, purchaseDate: '2026-01-01T00:00:00Z', planType: 'yearly', currencySymbol: 'USD' };
+  const body = { productId: 'com.mindfull.premium.monthly.consumable:base-plan', purchaseId: 'GPA.123', amount: 0, purchaseDate: '2026-01-01T00:00:00Z', planType: 'yearly', currencySymbol: 'USD' };
   const post = value => POST({ json: async () => value });
   const response = await post({ ...body, platform: 'android', purchaseToken: 'secret-token' });
   assert.equal(response.status, 201);
   assert.equal(writes[0].purchaseToken, 'secret-token');
+  assert.equal(writes[0].planType, 'monthly', 'store product overrides a stale yearly label');
   assert.ok(!JSON.stringify(await response.json()).includes('secret-token'));
   assert.equal((await post(body)).status, 201);
   assert.equal(writes.length, 1, 'restore does not insert a duplicate');

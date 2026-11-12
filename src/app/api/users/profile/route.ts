@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/getUserFromRequest";
 import { User } from "@/models/User";
 import { UserPurchase } from "@/models/UserPurchase";
+import { subscriptionPlan } from "@/lib/subscriptionPlan";
 import mongoose from "mongoose";
 
 /**
@@ -30,14 +31,14 @@ export async function GET(req: NextRequest) {
   const latestPurchase = await UserPurchase.findOne({
     userId: new mongoose.Types.ObjectId(user.userId as string),
   })
-    .sort({ purchaseDate: -1 })
+    .sort({ purchaseDate: -1, _id: -1 })
     .lean() as { planType: string; purchaseDate: Date; productId: string } | null;
 
   // Determine subscription status
   let subscriptionStatus = "not bought";
 
   if (latestPurchase) {
-    const planDays = latestPurchase.planType === "monthly" ? 30 : 365;
+    const planDays = subscriptionPlan(latestPurchase.productId, latestPurchase.planType) === "monthly" ? 30 : 365;
     const expiryDate = new Date(
       new Date(latestPurchase.purchaseDate).getTime() +
       planDays * 24 * 60 * 60 * 1000

@@ -15,8 +15,8 @@ export function adminUserSubscriptionPipeline(purchaseCollection: string, now: D
         { $limit: 1 },
         { $set: { planType: { $switch: {
           branches: [
-            { case: { $in: ["$productId", MONTHLY_PRODUCT_IDS] }, then: "monthly" },
-            { case: { $in: ["$productId", YEARLY_PRODUCT_IDS] }, then: "yearly" },
+            { case: { $in: [{ $arrayElemAt: [{ $split: [{ $ifNull: ["$productId", ""] }, ":"] }, 0] }, MONTHLY_PRODUCT_IDS] }, then: "monthly" },
+            { case: { $in: [{ $arrayElemAt: [{ $split: [{ $ifNull: ["$productId", ""] }, ":"] }, 0] }, YEARLY_PRODUCT_IDS] }, then: "yearly" },
           ], default: "$planType",
         } } } },
         { $project: { _id: 0, planType: 1, productId: 1, purchaseDate: 1 } },
