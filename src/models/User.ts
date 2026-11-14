@@ -11,6 +11,7 @@ const UserSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     resetPassword: { type: Boolean, default: false },
     userMood: String,
+    communityVisitedAt: Date,
     redemptionYearlyGrantedAt: Date,
     redemptionYearlyExpiresAt: Date,
     otp: String,
@@ -28,6 +29,9 @@ const UserSchema = new mongoose.Schema(
 // Update every cached alias so strict updates do not silently drop the label.
 for (const name of ["User", "user", "users"]) {
   const cachedModel = mongoose.models[name];
+  if (cachedModel && !cachedModel.schema.path("communityVisitedAt")) {
+    cachedModel.schema.add({ communityVisitedAt: Date });
+  }
   if (cachedModel && !cachedModel.schema.path("deletionPending")) {
     cachedModel.schema.add({ deletionPending: { type: Boolean, default: false }, deletionPlan: { type: mongoose.Schema.Types.Mixed, default: null, select: false } });
   }

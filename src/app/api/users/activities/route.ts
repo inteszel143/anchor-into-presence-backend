@@ -118,6 +118,7 @@ export async function GET(req: NextRequest) {
       $project: {
         name: 1,
         video: 1,
+        duration: 1,
         description: 1,
         _id: 1,
         thumbnail: 1,

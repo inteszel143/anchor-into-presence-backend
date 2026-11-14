@@ -83,13 +83,14 @@ export async function GET(req: NextRequest) {
   const { userId } = await getAuthUser(req);
 
   try {
+    const visitedThrough = new Date();
     const { searchParams } = new URL(req.url);
 
     const page = Number(searchParams.get("page")) || 1;
     const limit = Number(searchParams.get("limit")) || 10;
     const skip = (page - 1) * limit;
 
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = { createdAt: { $lte: visitedThrough } };
 
     // Fetch posts
     const posts = await Posts.find(filter)
@@ -145,6 +146,7 @@ export async function GET(req: NextRequest) {
       status: true,
       message: "Posts fetched successfully",
       data: finalPosts,
+      visitedThrough: visitedThrough.toISOString(),
       pagination: {
         page,
         limit,
