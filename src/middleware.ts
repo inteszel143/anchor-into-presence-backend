@@ -79,6 +79,19 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Next 15's Node middleware hands off the original stream before its async
+  // body-clone finalizer finishes. A slow multipart upload can then reach the
+  // route with a disturbed body. Finish reading this clone first; Next retains
+  // a separate clone for the route's formData(). Do this only after auth succeeds.
+  if (req.body && req.headers.get('content-type')?.toLowerCase().startsWith('multipart/form-data')) {
+    const reader = req.body.getReader()
+    try {
+      while (!(await reader.read()).done) { /* Drain without retaining chunks. */ }
+    } finally {
+      reader.releaseLock()
+    }
+  }
+
   return NextResponse.next()
 }
 
