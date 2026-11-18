@@ -2,11 +2,11 @@
 export const ACTIVE_WINDOW_MS = 2 * 60 * 1000;
 export const INACTIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
-export function appPresence(lastSeenAt: string | null | undefined, now: number, blocked = false) {
+export function appPresence(lastSeenAt: string | null | undefined, now: number, blocked = false, presenceUntil?: string | null) {
   const timestamp = lastSeenAt ? Date.parse(lastSeenAt) : NaN;
   if (!Number.isFinite(timestamp)) return { active: false, label: "No activity recorded" };
   const elapsed = Math.max(0, now - timestamp);
-  if (!blocked && elapsed < ACTIVE_WINDOW_MS) return { active: true, label: "Active now" };
+  if (!blocked && (presenceUntil !== undefined ? Date.parse(presenceUntil ?? "") > now : elapsed < ACTIVE_WINDOW_MS)) return { active: true, label: "Active now" };
   const minutes = Math.floor(elapsed / 60000);
   let label: string;
   if (minutes < 1) label = "Just now";

@@ -49,7 +49,10 @@ export async function GET(req: NextRequest) {
 
   const now = new Date();
   if (activity === "active") {
-    query.lastSeenAt = { $gt: new Date(now.getTime() - ACTIVE_WINDOW_MS) };
+    query.$and = [{ $or: [
+      { presenceUntil: { $gt: now } },
+      { presenceUntil: { $exists: false }, lastSeenAt: { $gt: new Date(now.getTime() - ACTIVE_WINDOW_MS) } },
+    ] }];
     query.isBlocked = { $ne: true };
     query.deletionPending = { $ne: true };
   } else if (activity === "inactive") {
@@ -72,7 +75,7 @@ export async function GET(req: NextRequest) {
           { $sort: sortBy },
           { $skip: (page - 1) * limit },
           { $limit: limit },
-          { $project: { name: 1, email: 1, image: 1, isBlocked: 1, isTestAccount: 1, createdAt: 1, lastSeenAt: 1, redemptionYearlyExpiresAt: 1, purchase: 1 } },
+          { $project: { name: 1, email: 1, image: 1, isBlocked: 1, isTestAccount: 1, createdAt: 1, lastSeenAt: 1, presenceUntil: 1, redemptionYearlyExpiresAt: 1, purchase: 1 } },
         ],
         count: [{ $count: "total" }],
       } },
@@ -88,7 +91,7 @@ export async function GET(req: NextRequest) {
 
   const total = await User.countDocuments(query);
   const users = await User.find(query)
-    .select("name email image isBlocked isTestAccount createdAt lastSeenAt redemptionYearlyExpiresAt")
+    .select("name email image isBlocked isTestAccount createdAt lastSeenAt presenceUntil redemptionYearlyExpiresAt")
     .sort(sortBy)
     .skip((page - 1) * limit)
     .limit(limit)

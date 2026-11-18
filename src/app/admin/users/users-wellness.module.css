@@ -184,9 +184,10 @@
 .avatarImage { display: block; width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }
 
 .presenceNote { margin: 0; padding: 12px 24px; color: #595959; font-size: 13px; line-height: 1.5; }
-.presenceStatus { position: relative; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 13px; border-radius: 4px; }
-.presenceStatus:focus-visible { outline: 2px solid #595959; outline-offset: 4px; }
-.presenceDot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: #8b8b8b; }
+.avatarPresence { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex: 0 0 48px; border-radius: 50%; }
+.avatarPresence:focus-visible { outline: 2px solid #595959; outline-offset: 4px; }
+.presenceDot { position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; border: 3px solid var(--admin-surface, #fffdfa); border-radius: 50%; background: #8b8b8b; }
 .presenceOnline { background: #22834b; }
-.presenceTooltip { display: none; position: absolute; z-index: 5; top: 100%; left: 0; padding: 8px 10px; background: #333; color: #fff; border-radius: 6px; font-size: 12px; }
-.presenceStatus:hover .presenceTooltip, .presenceStatus:focus .presenceTooltip { display: block; }
+.presenceTime { position: absolute; bottom: -2px; right: -2px; padding: 1px 4px; border: 2px solid var(--admin-surface, #fffdfa); border-radius: 8px; background: #102b15; color: #92d58b; font-size: 10px; font-weight: 500; line-height: 1.2; white-space: nowrap; }
+.presenceTooltip { display: none; position: absolute; z-index: 5; top: calc(100% + 8px); left: 0; width: max-content; padding: 8px 10px; background: #333; color: #fff; border-radius: 6px; font-size: 12px; font-weight: 400; line-height: 1.5; }
+.avatarPresence:hover .presenceTooltip, .avatarPresence:focus .presenceTooltip { display: block; }

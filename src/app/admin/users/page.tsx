@@ -26,6 +26,7 @@ type User = {
   subscription?: AdminSubscription;
   createdAt: string;
   lastSeenAt?: string | null;
+  presenceUntil?: string | null;
 };
 
 function UserAvatar({ image, initials }: { image?: string | null; initials: string }) {
@@ -134,8 +135,12 @@ export default function AdminUserListPage() {
     setLoading(true);
     setError("");
     let inFlight = false;
+    let queued = false;
+    let stream: EventSource | null = null;
+    let streamHealthy = false;
     async function loadUsers(silent = false) {
-      if (inFlight || controller.signal.aborted) return;
+      if (controller.signal.aborted) return;
+      if (inFlight) { queued = true; return; }
       inFlight = true;
       const requestController = new AbortController();
       const abortRequest = () => requestController.abort();
@@ -149,7 +154,7 @@ export default function AdminUserListPage() {
         if (controller.signal.aborted) return;
         const pages = Math.max(1, data.totalPages || 0);
         if (page > pages) { setPage(pages); return; }
-        setPresenceError("");
+        if (streamHealthy) setPresenceError("");
         setError("");
         setServerClock({ time: Date.parse(data.serverNow) || Date.now(), received: performance.now() });
         setUsers(data.users || []);
@@ -164,19 +169,43 @@ export default function AdminUserListPage() {
         window.clearTimeout(timeout);
         controller.signal.removeEventListener("abort", abortRequest);
         inFlight = false;
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          if (queued) { queued = false; void loadUsers(true); }
+        }
       }
     }
     void loadUsers();
-    const poll = () => {
-      if (document.visibilityState === "visible") void loadUsers(true);
+    const connect = () => {
+      stream?.close();
+      stream = null;
+      streamHealthy = false;
+      if (document.visibilityState !== "visible") return;
+      if (typeof EventSource === "undefined") {
+        setPresenceError("Live updates unavailable in this browser. Refreshing periodically.");
+        return;
+      }
+      stream = new EventSource("/api/admin/users/presence/stream");
+      stream.addEventListener("presence", () => {
+        streamHealthy = true;
+        void loadUsers(true);
+      });
+      stream.onerror = () => {
+        streamHealthy = false;
+        setPresenceError("Live activity reconnecting. Refreshing periodically until connected.");
+      };
     };
-    const timer = window.setInterval(poll, 30000);
-    document.addEventListener("visibilitychange", poll);
+    connect();
+    // Recovery for unsupported/broken streaming; healthy connections use SSE only.
+    const timer = window.setInterval(() => {
+      if (!streamHealthy && document.visibilityState === "visible") void loadUsers(true);
+    }, 30000);
+    document.addEventListener("visibilitychange", connect);
     return () => {
       controller.abort();
+      stream?.close();
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", poll);
+      document.removeEventListener("visibilitychange", connect);
     };
   }, [query, accountType, activity, sort, startDate, endDate, page, limit, refresh]);
 
@@ -269,7 +298,7 @@ export default function AdminUserListPage() {
           {filtered && <button className={styles.clearButton} type="button" onClick={clearFilters}><X size={15} aria-hidden="true" />Clear filters</button>}
         </div>
 
-        <p className={styles.presenceNote}>App activity reflects foreground signals within the last 2 minutes. Updates every 30 seconds. Users on older app versions may have no recorded activity.</p>
+        <p className={styles.presenceNote}>App activity updates live. Lost connections expire within 2 minutes of the last signal. Users on older app versions may have delayed or no recorded activity.</p>
         {presenceError && <p className={styles.presenceNote} role="status">{presenceError}</p>}
         {filtered && <div className={styles.filterSummary} aria-live="polite"><span>Filtered view</span>{accountType !== "registered" && <span className={styles.filterChip}>{accountTypes[accountType]}</span>}{search && <span className={styles.filterChip}>Search: {search}</span>}{startDate && <span className={styles.filterChip}>From {startDate}</span>}{endDate && <span className={styles.filterChip}>To {endDate}</span>}</div>}
         {error ? <div className={styles.empty} role="alert"><Users size={32} aria-hidden="true" /><h2>Users couldn’t load</h2><p>{error}</p><button className={styles.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div>
@@ -277,24 +306,29 @@ export default function AdminUserListPage() {
           : users.length === 0 ? <div className={styles.empty}><Users size={36} aria-hidden="true" /><h2>{filtered ? "No matching users" : "No users yet"}</h2><p>{filtered ? "Try another account type, name, email, or date range." : "Registered accounts will appear here."}</p>{filtered && <button className={styles.textButton} onClick={clearFilters}>Clear filters</button>}</div>
           : <div className={styles.tableScroll} role="region" aria-label="Users table" tabIndex={0}>
             <table className={styles.table}>
-              <thead><tr><th scope="col">User</th><th scope="col">User ID</th><th scope="col">Joined</th><th scope="col">App activity</th><th scope="col">Account access</th><th scope="col">Subscription (estimated)</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
+              <thead><tr><th scope="col">User</th><th scope="col">User ID</th><th scope="col">Joined</th><th scope="col">Account access</th><th scope="col">Subscription (estimated)</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
               <tbody>{users.map(user => {
                 const name = user.name?.trim() || "Unnamed user";
                 const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
-                const presence = appPresence(user.lastSeenAt, presenceNow, user.isBlocked);
+                const presence = appPresence(user.lastSeenAt, presenceNow, user.isBlocked, user.presenceUntil);
                 const seenDate = user.lastSeenAt ? new Date(user.lastSeenAt) : null;
                 const seenLabel = seenDate && Number.isFinite(seenDate.getTime()) ? `Last seen: ${seenDate.toLocaleString()}` : "No activity recorded";
+                const activityLabel = presenceError ? "Activity unavailable" : presence.label;
+                const recentBadge = !presenceError && !presence.active && seenDate && Number.isFinite(seenDate.getTime()) && !presence.label.startsWith("Offline")
+                  ? presence.label.replace(/ ago$/, "").replace(/ mins?$/, "m").replace(/ hours?$/, "h").replace(/ days?$/, "d").replace("Just now", "now")
+                  : null;
                 const subscription = user.subscription;
                 const subscriptionLabel = subscription?.status === "active" ? (subscription.plan === "lifetime" ? "Lifetime access" : "Active subscription") : subscription?.status === "expired" ? "Expired subscription" : subscription?.status === "none" ? "Registered only" : "Needs review";
                 return <tr key={user._id}>
-                  <td><div className={styles.identity}><UserAvatar image={user.image} initials={initials} /><div><span className={styles.name}>{name}</span><span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
+                  <td><div className={styles.identity}><span className={styles.avatarPresence} tabIndex={0} role="img" title={`${activityLabel}. ${seenLabel}`} aria-label={`${name}: ${activityLabel}. ${seenLabel}`}>
+                    <UserAvatar image={user.image} initials={initials} />
+                    {recentBadge
+                      ? <span className={styles.presenceTime} aria-hidden="true">{recentBadge}</span>
+                      : <span aria-hidden="true" className={`${styles.presenceDot} ${presence.active && !presenceError ? styles.presenceOnline : ""}`} />}
+                    <span className={styles.presenceTooltip} aria-hidden="true">{activityLabel}<br />{seenLabel}</span>
+                  </span><div><span className={styles.name}>{name}</span><span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
                   <td><span className={styles.userId} title={user._id}>#{user._id.slice(-6)}</span></td>
                   <td className={styles.date}>{joinedDate(user.createdAt)}</td>
-                  <td><span tabIndex={0} title={seenLabel} aria-label={`${presenceError ? "Activity unavailable" : presence.label}. ${seenLabel}`} className={styles.presenceStatus}>
-                    <span aria-hidden="true" className={`${styles.presenceDot} ${presence.active && !presenceError ? styles.presenceOnline : ""}`} />
-                    {presenceError ? "Activity unavailable" : presence.label}
-                    <span className={styles.presenceTooltip}>{seenLabel}</span>
-                  </span></td>
                   <td><span className={`${styles.badge} ${user.isBlocked ? styles.blocked : styles.active}`}><span aria-hidden="true" />{user.isBlocked ? "Blocked" : "Active"}</span></td>
                   <td><div className={styles.subscriptionCell}>
                     <span className={`${styles.badge} ${subscription?.status === "active" ? styles.active : subscription?.status === "expired" ? styles.expiredSubscription : styles.neutralSubscription}`}>{subscriptionLabel}</span>
