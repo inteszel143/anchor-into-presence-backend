@@ -12,6 +12,7 @@ function loadModule(file, mocks = {}) {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', compiled)(name => {
     if (name in mocks) return mocks[name];
+    if (name === '@/lib/appPresence') return loadModule('src/lib/appPresence.ts');
     if (name === './subscriptionPlan') return loadModule('src/lib/subscriptionPlan.ts');
     if (name.startsWith('@/')) throw new Error(`Unexpected application dependency: ${name}`);
     return require(name);
@@ -105,7 +106,7 @@ test('users end-date includes the full day and does not return password fields',
   const response = await GET(new NextRequest('http://localhost/api/admin/users?endDate=2026-10-04'));
   assert.equal(response.status, 200);
   assert.equal(query.createdAt.$lte.toISOString(), '2026-10-04T23:59:59.999Z');
-  assert.equal(selection, 'name email image isBlocked isTestAccount createdAt redemptionYearlyExpiresAt');
+  assert.equal(selection, 'name email image isBlocked isTestAccount createdAt lastSeenAt redemptionYearlyExpiresAt');
 });
 
 test('test account labels are explicit, reversible, and cannot change account access', async () => {

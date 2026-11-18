@@ -1,3 +1,4 @@
+import { ACTIVE_WINDOW_MS, INACTIVE_WINDOW_MS } from "@/lib/appPresence";
 import { connectDB } from "@/lib/db";
 import { User } from "@/models/User";
 import { UserPurchase } from "@/models/UserPurchase";
@@ -12,6 +13,11 @@ export async function GET(req: NextRequest) {
   const accountType = searchParams.get("accountType") || "registered";
   if (!["registered", "active", "test"].includes(accountType)) {
     return NextResponse.json({ message: "Invalid account type." }, { status: 400 });
+  }
+  const activity = searchParams.get("activity") || "all";
+  const sort = searchParams.get("sort") || "joined";
+  if (!["all", "active", "inactive", "untracked"].includes(activity) || !["joined", "lastSeen"].includes(sort)) {
+    return NextResponse.json({ message: "Invalid activity filter or sort." }, { status: 400 });
   }
   const search = searchParams.get("search") || "";
   const startDate = searchParams.get("startDate");
@@ -42,6 +48,17 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
+  if (activity === "active") {
+    query.lastSeenAt = { $gt: new Date(now.getTime() - ACTIVE_WINDOW_MS) };
+    query.isBlocked = { $ne: true };
+    query.deletionPending = { $ne: true };
+  } else if (activity === "inactive") {
+    query.lastSeenAt = { $type: "date", $lte: new Date(now.getTime() - INACTIVE_WINDOW_MS) };
+  } else if (activity === "untracked") {
+    query.lastSeenAt = null;
+  }
+  const sortBy: Record<string, 1 | -1> = sort === "lastSeen" ? { lastSeenAt: -1, _id: -1 } : { createdAt: -1, _id: -1 };
+  const responseOptions = { headers: { "Cache-Control": "private, no-store" } };
   if (accountType === "test") query.isTestAccount = true;
   if (accountType === "active") {
     query.isTestAccount = { $ne: true };
@@ -52,10 +69,10 @@ export async function GET(req: NextRequest) {
       { $match: { estimatedActive: true } },
       { $facet: {
         users: [
-          { $sort: { createdAt: -1, _id: -1 } },
+          { $sort: sortBy },
           { $skip: (page - 1) * limit },
           { $limit: limit },
-          { $project: { name: 1, email: 1, image: 1, isBlocked: 1, isTestAccount: 1, createdAt: 1, redemptionYearlyExpiresAt: 1, purchase: 1 } },
+          { $project: { name: 1, email: 1, image: 1, isBlocked: 1, isTestAccount: 1, createdAt: 1, lastSeenAt: 1, redemptionYearlyExpiresAt: 1, purchase: 1 } },
         ],
         count: [{ $count: "total" }],
       } },
@@ -65,14 +82,14 @@ export async function GET(req: NextRequest) {
       users: (result?.users ?? []).map(({ purchase, ...user }: { purchase?: Parameters<typeof estimateAdminSubscription>[0]; redemptionYearlyExpiresAt?: Date }) => ({
         ...user, subscription: estimateAdminSubscription(purchase, now, user.redemptionYearlyExpiresAt),
       })),
-      total, page, totalPages: Math.ceil(total / limit),
-    });
+      total, page, totalPages: Math.ceil(total / limit), serverNow: now.toISOString(),
+    }, responseOptions);
   }
 
   const total = await User.countDocuments(query);
   const users = await User.find(query)
-    .select("name email image isBlocked isTestAccount createdAt redemptionYearlyExpiresAt")
-    .sort({ createdAt: -1 })
+    .select("name email image isBlocked isTestAccount createdAt lastSeenAt redemptionYearlyExpiresAt")
+    .sort(sortBy)
     .skip((page - 1) * limit)
     .limit(limit)
     .lean();
@@ -89,5 +106,6 @@ export async function GET(req: NextRequest) {
     total,
     page,
     totalPages: Math.ceil(total / limit),
-  });
+    serverNow: now.toISOString(),
+  }, responseOptions);
 }

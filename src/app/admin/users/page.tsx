@@ -6,6 +6,7 @@ import Image from "next/image";
 import { getImageUrl } from "@/lib/getImageUrl";
 import { toast } from "react-toastify";
 import styles from "./users-wellness.module.css";
+import { appPresence } from "@/lib/appPresence";
 import type { AdminSubscription } from "@/lib/adminSubscriptionStatus";
 
 const accountTypes = {
@@ -24,6 +25,7 @@ type User = {
   isTestAccount?: boolean;
   subscription?: AdminSubscription;
   createdAt: string;
+  lastSeenAt?: string | null;
 };
 
 function UserAvatar({ image, initials }: { image?: string | null; initials: string }) {
@@ -56,6 +58,11 @@ export default function AdminUserListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [activity, setActivity] = useState("all");
+  const [sort, setSort] = useState("joined");
+  const [presenceError, setPresenceError] = useState("");
+  const [serverClock, setServerClock] = useState({ time: Date.now(), received: 0 });
+  const [, setClockTick] = useState(0);
   const [pending, setPending] = useState<string | null>(null);
 
   const [accountAction, setAccountAction] = useState<{ user: User; type: "block" | "unblock" | "delete" } | null>(null);
@@ -126,33 +133,67 @@ export default function AdminUserListPage() {
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    async function loadUsers() {
+    let inFlight = false;
+    async function loadUsers(silent = false) {
+      if (inFlight || controller.signal.aborted) return;
+      inFlight = true;
+      const requestController = new AbortController();
+      const abortRequest = () => requestController.abort();
+      controller.signal.addEventListener("abort", abortRequest, { once: true });
+      const timeout = window.setTimeout(abortRequest, 15000);
       try {
-        const params = new URLSearchParams({ search: query, accountType, startDate, endDate, page: String(page), limit: String(limit) });
-        const res = await fetch(`/api/admin/users?${params}`, { signal: controller.signal });
+        const params = new URLSearchParams({ search: query, accountType, activity, sort, startDate, endDate, page: String(page), limit: String(limit) });
+        const res = await fetch(`/api/admin/users?${params}`, { signal: requestController.signal, cache: "no-store" });
         if (!res.ok) throw new Error("We couldn’t load users. Please try again.");
         const data = await res.json();
         if (controller.signal.aborted) return;
         const pages = Math.max(1, data.totalPages || 0);
         if (page > pages) { setPage(pages); return; }
+        setPresenceError("");
+        setError("");
+        setServerClock({ time: Date.parse(data.serverNow) || Date.now(), received: performance.now() });
         setUsers(data.users || []);
         setTotal(data.total || 0);
         setTotalPages(pages);
       } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "We couldn’t load users.");
+        if (!controller.signal.aborted) {
+          if (silent) setPresenceError("Activity updates unavailable. Retrying automatically.");
+          else setError(err instanceof Error ? err.message : "We couldn’t load users.");
+        }
       } finally {
+        window.clearTimeout(timeout);
+        controller.signal.removeEventListener("abort", abortRequest);
+        inFlight = false;
         if (!controller.signal.aborted) setLoading(false);
       }
     }
-    loadUsers();
-    return () => controller.abort();
-  }, [query, accountType, startDate, endDate, page, limit, refresh]);
+    void loadUsers();
+    const poll = () => {
+      if (document.visibilityState === "visible") void loadUsers(true);
+    };
+    const timer = window.setInterval(poll, 30000);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", poll);
+    };
+  }, [query, accountType, activity, sort, startDate, endDate, page, limit, refresh]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") setClockTick(value => value + 1);
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, []);
+  // Use elapsed monotonic time so an administrator's clock cannot skew presence.
+  const presenceNow = serverClock.time + (serverClock.received ? performance.now() - serverClock.received : 0);
 
   function clearFilters() {
-    setAccountType("registered"); setSearch(""); setQuery(""); setStartDate(""); setEndDate(""); setPage(1);
+    setActivity("all"); setSort("joined"); setAccountType("registered"); setSearch(""); setQuery(""); setStartDate(""); setEndDate(""); setPage(1);
   }
 
-  const filtered = Boolean(accountType !== "registered" || search || startDate || endDate);
+  const filtered = Boolean(activity !== "all" || sort !== "joined" || accountType !== "registered" || search || startDate || endDate);
   const busy = loading || search !== query;
   const first = total ? (page - 1) * limit + 1 : 0;
   const last = Math.min(page * limit, total);
@@ -207,6 +248,20 @@ export default function AdminUserListPage() {
               {Object.entries(accountTypes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
+          <label htmlFor="user-app-activity">App activity
+            <select id="user-app-activity" value={activity} onChange={event => { setActivity(event.target.value); setPage(1); }}>
+              <option value="all">All activity</option>
+              <option value="active">Active now</option>
+              <option value="inactive">Inactive for 30+ days</option>
+              <option value="untracked">No activity recorded</option>
+            </select>
+          </label>
+          <label htmlFor="user-sort">Sort by
+            <select id="user-sort" value={sort} onChange={event => { setSort(event.target.value); setPage(1); }}>
+              <option value="joined">Newest accounts</option>
+              <option value="lastSeen">Last seen</option>
+            </select>
+          </label>
           <div className={styles.dateFilters}>
             <label htmlFor="user-start-date">Joined from<input id="user-start-date" type="date" value={startDate} max={endDate || undefined} onChange={event => { setStartDate(event.target.value); setPage(1); }} /></label>
             <label htmlFor="user-end-date">Joined to<input id="user-end-date" type="date" value={endDate} min={startDate || undefined} onChange={event => { setEndDate(event.target.value); setPage(1); }} /></label>
@@ -214,22 +269,32 @@ export default function AdminUserListPage() {
           {filtered && <button className={styles.clearButton} type="button" onClick={clearFilters}><X size={15} aria-hidden="true" />Clear filters</button>}
         </div>
 
+        <p className={styles.presenceNote}>App activity reflects foreground signals within the last 2 minutes. Updates every 30 seconds. Users on older app versions may have no recorded activity.</p>
+        {presenceError && <p className={styles.presenceNote} role="status">{presenceError}</p>}
         {filtered && <div className={styles.filterSummary} aria-live="polite"><span>Filtered view</span>{accountType !== "registered" && <span className={styles.filterChip}>{accountTypes[accountType]}</span>}{search && <span className={styles.filterChip}>Search: {search}</span>}{startDate && <span className={styles.filterChip}>From {startDate}</span>}{endDate && <span className={styles.filterChip}>To {endDate}</span>}</div>}
         {error ? <div className={styles.empty} role="alert"><Users size={32} aria-hidden="true" /><h2>Users couldn’t load</h2><p>{error}</p><button className={styles.textButton} onClick={() => setRefresh(value => value + 1)}>Try again</button></div>
           : busy ? <div className={styles.empty} role="status"><span className={styles.loadingDot} />Loading users…</div>
           : users.length === 0 ? <div className={styles.empty}><Users size={36} aria-hidden="true" /><h2>{filtered ? "No matching users" : "No users yet"}</h2><p>{filtered ? "Try another account type, name, email, or date range." : "Registered accounts will appear here."}</p>{filtered && <button className={styles.textButton} onClick={clearFilters}>Clear filters</button>}</div>
           : <div className={styles.tableScroll} role="region" aria-label="Users table" tabIndex={0}>
             <table className={styles.table}>
-              <thead><tr><th scope="col">User</th><th scope="col">User ID</th><th scope="col">Joined</th><th scope="col">Account access</th><th scope="col">Subscription (estimated)</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
+              <thead><tr><th scope="col">User</th><th scope="col">User ID</th><th scope="col">Joined</th><th scope="col">App activity</th><th scope="col">Account access</th><th scope="col">Subscription (estimated)</th><th scope="col" className={styles.actionsHeading}>Actions</th></tr></thead>
               <tbody>{users.map(user => {
                 const name = user.name?.trim() || "Unnamed user";
                 const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+                const presence = appPresence(user.lastSeenAt, presenceNow, user.isBlocked);
+                const seenDate = user.lastSeenAt ? new Date(user.lastSeenAt) : null;
+                const seenLabel = seenDate && Number.isFinite(seenDate.getTime()) ? `Last seen: ${seenDate.toLocaleString()}` : "No activity recorded";
                 const subscription = user.subscription;
                 const subscriptionLabel = subscription?.status === "active" ? (subscription.plan === "lifetime" ? "Lifetime access" : "Active subscription") : subscription?.status === "expired" ? "Expired subscription" : subscription?.status === "none" ? "Registered only" : "Needs review";
                 return <tr key={user._id}>
                   <td><div className={styles.identity}><UserAvatar image={user.image} initials={initials} /><div><span className={styles.name}>{name}</span><span className={styles.email}>{user.email || "No email address"}</span></div></div></td>
                   <td><span className={styles.userId} title={user._id}>#{user._id.slice(-6)}</span></td>
                   <td className={styles.date}>{joinedDate(user.createdAt)}</td>
+                  <td><span tabIndex={0} title={seenLabel} aria-label={`${presenceError ? "Activity unavailable" : presence.label}. ${seenLabel}`} className={styles.presenceStatus}>
+                    <span aria-hidden="true" className={`${styles.presenceDot} ${presence.active && !presenceError ? styles.presenceOnline : ""}`} />
+                    {presenceError ? "Activity unavailable" : presence.label}
+                    <span className={styles.presenceTooltip}>{seenLabel}</span>
+                  </span></td>
                   <td><span className={`${styles.badge} ${user.isBlocked ? styles.blocked : styles.active}`}><span aria-hidden="true" />{user.isBlocked ? "Blocked" : "Active"}</span></td>
                   <td><div className={styles.subscriptionCell}>
                     <span className={`${styles.badge} ${subscription?.status === "active" ? styles.active : subscription?.status === "expired" ? styles.expiredSubscription : styles.neutralSubscription}`}>{subscriptionLabel}</span>

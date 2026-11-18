@@ -12,6 +12,7 @@ const UserSchema = new mongoose.Schema(
     resetPassword: { type: Boolean, default: false },
     userMood: String,
     communityVisitedAt: Date,
+    lastSeenAt: { type: Date, index: true, sparse: true },
     redemptionYearlyGrantedAt: Date,
     redemptionYearlyExpiresAt: Date,
     otp: String,
@@ -29,6 +30,9 @@ const UserSchema = new mongoose.Schema(
 // Update every cached alias so strict updates do not silently drop the label.
 for (const name of ["User", "user", "users"]) {
   const cachedModel = mongoose.models[name];
+  if (cachedModel && !cachedModel.schema.path("lastSeenAt")) {
+    cachedModel.schema.add({ lastSeenAt: { type: Date, index: true, sparse: true } });
+  }
   if (cachedModel && !cachedModel.schema.path("communityVisitedAt")) {
     cachedModel.schema.add({ communityVisitedAt: Date });
   }
