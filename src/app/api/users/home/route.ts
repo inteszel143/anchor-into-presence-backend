@@ -101,6 +101,7 @@ export async function GET(req: NextRequest) {
         createdAt: 1,
         categoryName: "$category.name",
         duration: 1,
+        scheduleDate: 1,
         categoryId: "$category._id",
         tagName: {
           $map: {

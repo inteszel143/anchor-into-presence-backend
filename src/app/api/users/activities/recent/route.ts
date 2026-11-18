@@ -138,6 +138,7 @@ export async function GET(req: NextRequest) {
           video: "$activity.video",
           description: "$activity.description",
           duration: "$activity.duration",
+          scheduleDate: "$activity.scheduleDate",
           category: {
             _id: "$category._id",
             name: "$category.name",

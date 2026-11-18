@@ -119,6 +119,7 @@ export async function GET(req: NextRequest) {
         name: 1,
         video: 1,
         duration: 1,
+        scheduleDate: 1,
         description: 1,
         _id: 1,
         thumbnail: 1,
