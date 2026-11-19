@@ -43,7 +43,8 @@ function joinedDate(value: string) {
 }
 
 export default function AdminUserListPage() {
-  const [summary, setSummary] = useState<{ totalAccounts: number; testAccounts: number; estimatedActiveSubscriptions: number } | null>(null);
+  const [summary, setSummary] = useState<{ totalAccounts: number; testAccounts: number; estimatedActiveSubscriptions: number; totalActiveUsers: number } | null>(null);
+  const refreshSummary = useRef<() => void>(() => {});
   const [summaryError, setSummaryError] = useState("");
   const [summaryRefresh, setSummaryRefresh] = useState(0);
   const [users, setUsers] = useState<User[]>([]);
@@ -111,18 +112,30 @@ export default function AdminUserListPage() {
     const controller = new AbortController();
     setSummary(null);
     setSummaryError("");
+    let inFlight = false;
+    let queued = false;
     async function loadSummary() {
+      if (controller.signal.aborted) return;
+      if (inFlight) { queued = true; return; }
+      inFlight = true;
       try {
         const response = await fetch("/api/admin/users/summary", { signal: controller.signal });
         if (!response.ok) throw new Error("Account totals are unavailable. Please try again.");
         const data = await response.json();
-        if (!controller.signal.aborted) setSummary(data);
+        if (!controller.signal.aborted) { setSummary(data); setSummaryError(""); }
       } catch (error) {
-        if (!controller.signal.aborted) setSummaryError(error instanceof Error ? error.message : "Account totals are unavailable.");
+        if (!controller.signal.aborted) { setSummary(null); setSummaryError(error instanceof Error ? error.message : "Account totals are unavailable."); }
+      } finally {
+        inFlight = false;
+        if (queued && !controller.signal.aborted) { queued = false; void loadSummary(); }
       }
     }
+    refreshSummary.current = () => { void loadSummary(); };
     void loadSummary();
-    return () => controller.abort();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadSummary();
+    }, 30000);
+    return () => { controller.abort(); window.clearInterval(timer); refreshSummary.current = () => {}; };
   }, [refresh, summaryRefresh]);
 
   useEffect(() => {
@@ -189,6 +202,7 @@ export default function AdminUserListPage() {
       stream.addEventListener("presence", () => {
         streamHealthy = true;
         void loadUsers(true);
+        refreshSummary.current();
       });
       stream.onerror = () => {
         streamHealthy = false;
@@ -256,6 +270,7 @@ export default function AdminUserListPage() {
         <div className={styles.summaryHeading}><h2>Account overview</h2><span>All accounts · independent of table filters</span></div>
         <div className={styles.summaryGrid}>
           <div className={styles.summaryCard}><span>Registered accounts</span><strong>{summary ? summary.totalAccounts.toLocaleString() : "—"}</strong><p>Includes unverified signups and test accounts. App downloads aren’t tracked here.</p></div>
+          <div className={styles.summaryCard}><span>Total active users</span><strong>{summary?.totalActiveUsers?.toLocaleString() ?? "—"}</strong><p>Active in the app right now, including test accounts. Matches the Active now activity filter.</p></div>
           <div className={styles.summaryCard}><span>Estimated active subscriptions</span><strong>{summary ? summary.estimatedActiveSubscriptions.toLocaleString() : "—"}</strong><p>Unique accounts with a current recorded plan or complimentary access, excluding marked test accounts.</p></div>
           <div className={`${styles.summaryCard} ${styles.testSummaryCard}`}><span>Marked test accounts</span><strong>{summary ? summary.testAccounts.toLocaleString() : "—"}</strong><p>Accounts manually reviewed and labeled as tests by an admin.</p></div>
         </div>
@@ -280,6 +295,7 @@ export default function AdminUserListPage() {
           <label htmlFor="user-app-activity">App activity
             <select id="user-app-activity" value={activity} onChange={event => { setActivity(event.target.value); setPage(1); }}>
               <option value="all">All activity</option>
+              <option value="recent">Not offline (seen within 30 days)</option>
               <option value="active">Active now</option>
               <option value="inactive">Inactive for 30+ days</option>
               <option value="untracked">No activity recorded</option>

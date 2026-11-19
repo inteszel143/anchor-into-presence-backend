@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import { findOfferCustomers } from "./offerCustomers";
 import { UserPurchase } from "@/models/UserPurchase";
-import type { GooglePlayEnvironment, GooglePlayOffer, GooglePlayOfferReport } from "./googlePlayOfferTypes";
+import type { GooglePlayEnvironment, GooglePlayOffer, GooglePlayOfferReport, GoogleSubscriber, GoogleSubscriberReport } from "./googlePlayOfferTypes";
 
 export class GooglePlayError extends Error {}
 
@@ -35,7 +35,7 @@ function timestamp(value: string | undefined): number | null {
 
 // A read-only snapshot, not a renewal ledger or an entitlement decision.
 // Never return purchase tokens or Google's raw error bodies.
-export function mapGooglePlayOffers(purchase: PlayPurchase, token: string, environment: GooglePlayEnvironment): GooglePlayOffer[] {
+export function mapGooglePlayOffers(purchase: PlayPurchase, token: string, environment: GooglePlayEnvironment, includeRegular = false): GooglePlayOffer[] {
   if (purchase.kind !== "androidpublisher#subscriptionPurchaseV2" ||
       !Array.isArray(purchase.lineItems) || typeof purchase.subscriptionState !== "string") {
     throw new GooglePlayError("Google returned an unexpected subscription response.");
@@ -45,7 +45,7 @@ export function mapGooglePlayOffers(purchase: PlayPurchase, token: string, envir
   return purchase.lineItems.flatMap((item, index) => {
     const promotion = item.signupPromotion;
     const offerId = item.offerDetails?.offerId || null;
-    if (!offerId && !promotion?.oneTimeCode && !promotion?.vanityCode) return [];
+    if (!includeRegular && !offerId && !promotion?.oneTimeCode && !promotion?.vanityCode) return [];
     // Deferred replacements aren't owned yet and must not count as redemptions.
     if (!item.latestSuccessfulOrderId) return [];
     if (typeof item.productId !== "string" || !item.productId) {
@@ -60,7 +60,7 @@ export function mapGooglePlayOffers(purchase: PlayPurchase, token: string, envir
       basePlanId: item.offerDetails?.basePlanId || null,
       offerId,
       promotionCode: promotion?.vanityCode?.promotionCode || null,
-      kind: promotion?.vanityCode ? "Custom promo code" as const : promotion?.oneTimeCode ? "One-time promo code" as const : "Subscription offer" as const,
+      kind: promotion?.vanityCode ? "Custom promo code" as const : promotion?.oneTimeCode ? "One-time promo code" as const : offerId ? "Subscription offer" as const : "Regular subscription" as const,
       startedAt: timestamp(purchase.startTime),
       expiresAt: timestamp(item.expiryTime),
       state: purchase.subscriptionState!,
@@ -98,7 +98,7 @@ async function accessToken(signal: AbortSignal): Promise<string> {
   return body.access_token;
 }
 
-export async function getGooglePlayOffers(environment: GooglePlayEnvironment): Promise<GooglePlayOfferReport> {
+export async function getGooglePlayOffers(environment: GooglePlayEnvironment, includeRegular = false): Promise<GooglePlayOfferReport> {
   const signal = AbortSignal.timeout(45000);
   const bearer = await accessToken(signal);
   await connectDB();
@@ -120,6 +120,7 @@ export async function getGooglePlayOffers(environment: GooglePlayEnvironment): P
   let checkedPurchases = 0;
   let unavailablePurchases = 0;
   const offers: GooglePlayOffer[] = [];
+  const unavailableCustomers: NonNullable<GooglePlayOfferReport["unavailableCustomers"]> = [];
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(5, purchases.length) }, async () => {
     while (next < purchases.length) {
@@ -133,6 +134,8 @@ export async function getGooglePlayOffers(environment: GooglePlayEnvironment): P
         if (response.status === 404 || response.status === 410 ||
             (response.status === 400 && error.error?.errors?.some((entry: { reason?: string }) => entry.reason === "subscriptionExpired"))) {
           unavailablePurchases++;
+          const customer = customers.get(token);
+          if (customer) unavailableCustomers.push(customer);
           continue;
         }
         if (response.status === 403) {
@@ -144,10 +147,55 @@ export async function getGooglePlayOffers(environment: GooglePlayEnvironment): P
         throw new GooglePlayError(`Google could not check purchases (HTTP ${response.status}). No partial report is shown.`);
       }
       const purchase: PlayPurchase = await response.json();
-      offers.push(...mapGooglePlayOffers(purchase, token, environment).map(offer => ({ ...offer, customer: customers.get(token) })));
+      offers.push(...mapGooglePlayOffers(purchase, token, environment, includeRegular).map(offer => ({ ...offer, customer: customers.get(token) })));
       checkedPurchases++;
     }
   }));
   return { environment, checkedAt: Date.now(), checkedPurchases, unavailablePurchases, untrackedPurchases,
+    unavailableCustomers,
     offers: offers.sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0)) };
+}
+
+// Reporting only: count app accounts, never renewal rows or individual line items.
+export function summarizeGoogleSubscribers(report: GooglePlayOfferReport): GoogleSubscriberReport {
+  const accounts = new Map<string, GoogleSubscriber>();
+  let unmatchedItems = 0;
+  const getAccount = (customer: GooglePlayOffer["customer"]) => {
+    if (customer?.status !== "matched" || !customer.accountId) return null;
+    let account = accounts.get(customer.accountId);
+    if (!account) {
+      account = { id: customer.accountId, name: customer.name, email: customer.email,
+        subscriptions: [], unavailablePurchases: 0, active: false, needsReview: false };
+      accounts.set(account.id, account);
+    }
+    return account;
+  };
+  for (const subscription of report.offers) {
+    const account = getAccount(subscription.customer);
+    if (!account) { unmatchedItems++; continue; }
+    account.subscriptions.push(subscription);
+    const eligible = ["SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD", "SUBSCRIPTION_STATE_CANCELED"].includes(subscription.state);
+    if (eligible && subscription.expiresAt !== null && subscription.expiresAt > report.checkedAt) account.active = true;
+    if (subscription.expiresAt === null || ![
+      "SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD", "SUBSCRIPTION_STATE_CANCELED",
+      "SUBSCRIPTION_STATE_EXPIRED", "SUBSCRIPTION_STATE_ON_HOLD", "SUBSCRIPTION_STATE_PAUSED",
+    ].includes(subscription.state)) account.needsReview = true;
+  }
+  for (const customer of report.unavailableCustomers ?? []) {
+    const account = getAccount(customer);
+    if (account) { account.unavailablePurchases++; account.needsReview = true; }
+  }
+  const subscribers = [...accounts.values()].sort((a, b) => (a.name ?? a.email ?? a.id).localeCompare(b.name ?? b.email ?? b.id));
+  return { environment: report.environment, checkedAt: report.checkedAt, checkedPurchases: report.checkedPurchases,
+    untrackedPurchases: report.untrackedPurchases, unavailablePurchases: report.unavailablePurchases, unmatchedItems, subscribers,
+    totals: {
+      subscribers: subscribers.filter(a => a.subscriptions.length > 0).length,
+      active: subscribers.filter(a => a.active).length,
+      inactive: subscribers.filter(a => a.subscriptions.length > 0 && !a.active && !a.needsReview).length,
+      needsReview: subscribers.filter(a => a.needsReview).length,
+    } };
+}
+
+export async function getGooglePlaySubscribers(environment: GooglePlayEnvironment): Promise<GoogleSubscriberReport> {
+  return summarizeGoogleSubscribers(await getGooglePlayOffers(environment, true));
 }

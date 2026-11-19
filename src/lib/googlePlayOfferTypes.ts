@@ -8,7 +8,7 @@ export type GooglePlayOffer = {
   basePlanId: string | null;
   offerId: string | null;
   promotionCode: string | null;
-  kind: "Subscription offer" | "One-time promo code" | "Custom promo code";
+  kind: "Subscription offer" | "One-time promo code" | "Custom promo code" | "Regular subscription";
   startedAt: number | null;
   expiresAt: number | null;
   state: string;
@@ -25,4 +25,25 @@ export type GooglePlayOfferReport = {
   unavailablePurchases: number;
   untrackedPurchases: number;
   offers: GooglePlayOffer[];
+  unavailableCustomers?: OfferCustomer[];
+};
+
+export type GoogleSubscriber = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  subscriptions: GooglePlayOffer[];
+  unavailablePurchases: number;
+  active: boolean;
+  needsReview: boolean;
+};
+export type GoogleSubscriberReport = {
+  environment: GooglePlayEnvironment;
+  checkedAt: number;
+  checkedPurchases: number;
+  untrackedPurchases: number;
+  unavailablePurchases: number;
+  unmatchedItems: number;
+  subscribers: GoogleSubscriber[];
+  totals: { subscribers: number; active: number; inactive: number; needsReview: number };
 };

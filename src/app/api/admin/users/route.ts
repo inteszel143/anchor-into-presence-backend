@@ -1,4 +1,4 @@
-import { ACTIVE_WINDOW_MS, INACTIVE_WINDOW_MS } from "@/lib/appPresence";
+import { activeAppUserFilter, INACTIVE_WINDOW_MS } from "@/lib/appPresence";
 import { connectDB } from "@/lib/db";
 import { User } from "@/models/User";
 import { UserPurchase } from "@/models/UserPurchase";
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
   const activity = searchParams.get("activity") || "all";
   const sort = searchParams.get("sort") || "joined";
-  if (!["all", "active", "inactive", "untracked"].includes(activity) || !["joined", "lastSeen"].includes(sort)) {
+  if (!["all", "active", "recent", "inactive", "untracked"].includes(activity) || !["joined", "lastSeen"].includes(sort)) {
     return NextResponse.json({ message: "Invalid activity filter or sort." }, { status: 400 });
   }
   const search = searchParams.get("search") || "";
@@ -49,12 +49,9 @@ export async function GET(req: NextRequest) {
 
   const now = new Date();
   if (activity === "active") {
-    query.$and = [{ $or: [
-      { presenceUntil: { $gt: now } },
-      { presenceUntil: { $exists: false }, lastSeenAt: { $gt: new Date(now.getTime() - ACTIVE_WINDOW_MS) } },
-    ] }];
-    query.isBlocked = { $ne: true };
-    query.deletionPending = { $ne: true };
+    Object.assign(query, activeAppUserFilter(now));
+  } else if (activity === "recent") {
+    query.lastSeenAt = { $type: "date", $gt: new Date(now.getTime() - INACTIVE_WINDOW_MS) };
   } else if (activity === "inactive") {
     query.lastSeenAt = { $type: "date", $lte: new Date(now.getTime() - INACTIVE_WINDOW_MS) };
   } else if (activity === "untracked") {

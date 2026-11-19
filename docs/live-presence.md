@@ -43,7 +43,7 @@ buffering indefinitely. The endpoint never includes user details in events.
 
 ## Deployment checks
 
-Not yet deployed. Deploy API/model/admin changes together, then release Flutter.
+Backend/admin deployed November 19, 2026; see [deployment verification](deployments/2026-11-19-live-presence.md). The updated Flutter build/patch must be released separately.
 Ensure the reverse proxy/CDN passes streaming responses without buffering. The
 endpoint sends `X-Accel-Buffering: no` and `Cache-Control: private, no-store,
 no-transform`. For an Nginx location serving this route, use `proxy_buffering off`,

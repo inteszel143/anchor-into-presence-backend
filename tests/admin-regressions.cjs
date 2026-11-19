@@ -146,14 +146,20 @@ test('account overview returns totals, including zero for an empty database', as
   for (const result of [[], [{ totalAccounts: 12, testAccounts: 3, estimatedActiveSubscriptions: 4 }]]) {
     const { GET } = loadModule('src/app/api/admin/users/summary/route.ts', {
       '@/lib/db': { connectDB: async () => {} },
-      '@/models/User': { User: { aggregate: async () => result } },
+      '@/models/User': { User: { aggregate: async () => result, countDocuments: async filter => {
+        assert.equal(filter.isBlocked.$ne, true);
+        assert.equal(filter.deletionPending.$ne, true);
+        assert.equal(filter.$and[0].$or[1].presenceUntil.$exists, false);
+        assert.equal(filter.$and[0].$or[0].presenceUntil.$gt.getTime() - filter.$and[0].$or[1].lastSeenAt.$gt.getTime(), 120000);
+        return result.length ? 5 : 0;
+      } } },
       '@/models/UserPurchase': { UserPurchase: { collection: { name: 'user_purchases' } } },
       '@/lib/adminUserSummary': loadModule('src/lib/adminUserSummary.ts', { './adminSubscriptionStatus': loadModule('src/lib/adminSubscriptionStatus.ts') }),
     });
     const response = await GET();
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'private, no-store');
-    assert.deepEqual(await response.json(), result[0] ?? { totalAccounts: 0, testAccounts: 0, estimatedActiveSubscriptions: 0 });
+    assert.deepEqual(await response.json(), { ...(result[0] ?? { totalAccounts: 0, testAccounts: 0, estimatedActiveSubscriptions: 0 }), totalActiveUsers: result.length ? 5 : 0 });
   }
 });
 

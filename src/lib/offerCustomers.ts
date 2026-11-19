@@ -4,6 +4,7 @@ import { User } from "@/models/User";
 
 export type OfferCustomer = {
   status: "matched" | "unmatched" | "conflict";
+  accountId?: string;
   name: string | null;
   email: string | null;
 };
@@ -24,7 +25,7 @@ export async function findOfferCustomers(keys: string[], platform: "ios" | "andr
     const ids = [...new Set(purchases.filter(p => p[field] === key).map(p => String(p.userId)))];
     const user = ids.length === 1 ? byId.get(ids[0]) : undefined;
     result.set(key, ids.length > 1 ? { status: "conflict", name: null, email: null } : user
-      ? { status: "matched", name: typeof user.name === "string" ? user.name : null, email: typeof user.email === "string" ? user.email : null }
+      ? { status: "matched", accountId: String(user._id), name: typeof user.name === "string" ? user.name : null, email: typeof user.email === "string" ? user.email : null }
       : { status: "unmatched", name: null, email: null });
   }
   return result;

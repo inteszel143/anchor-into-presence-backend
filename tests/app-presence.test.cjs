@@ -93,7 +93,7 @@ function directory() {
   return { ...route, seen };
 }
 test('directory filters presence before pagination and returns server time with lastSeenAt', async () => {
-  for (const activity of ['active', 'inactive', 'untracked']) {
+  for (const activity of ['active', 'recent', 'inactive', 'untracked']) {
     const api = directory();
     const response = await api.GET(new NextRequest(`http://localhost/api/admin/users?activity=${activity}&sort=lastSeen`));
     const data = await response.json();
@@ -106,6 +106,12 @@ test('directory filters presence before pagination and returns server time with 
     if (activity === 'active') {
       assert.equal(+api.seen.query.$and[0].$or[1].lastSeenAt.$gt, Date.parse(data.serverNow) - presence.ACTIVE_WINDOW_MS);
       assert.deepEqual(api.seen.query.isBlocked, { $ne: true });
+    } else if (activity === 'recent') {
+      assert.equal(api.seen.query.lastSeenAt.$type, 'date');
+      const cutoff = +api.seen.query.lastSeenAt.$gt;
+      assert.equal(cutoff, Date.parse(data.serverNow) - presence.INACTIVE_WINDOW_MS);
+      assert.ok(!presence.appPresence(new Date(cutoff + 1).toISOString(), Date.parse(data.serverNow)).label.startsWith('Offline'));
+      assert.ok(presence.appPresence(new Date(cutoff).toISOString(), Date.parse(data.serverNow)).label.startsWith('Offline'));
     } else if (activity === 'inactive') {
       assert.equal(api.seen.query.lastSeenAt.$type, 'date');
       assert.equal(+api.seen.query.lastSeenAt.$lte, Date.parse(data.serverNow) - presence.INACTIVE_WINDOW_MS);

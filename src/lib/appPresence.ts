@@ -2,6 +2,17 @@
 export const ACTIVE_WINDOW_MS = 2 * 60 * 1000;
 export const INACTIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
+export function activeAppUserFilter(now: Date) {
+  return {
+    $and: [{ $or: [
+      { presenceUntil: { $gt: now } },
+      { presenceUntil: { $exists: false }, lastSeenAt: { $gt: new Date(now.getTime() - ACTIVE_WINDOW_MS) } },
+    ] }],
+    isBlocked: { $ne: true },
+    deletionPending: { $ne: true },
+  };
+}
+
 export function appPresence(lastSeenAt: string | null | undefined, now: number, blocked = false, presenceUntil?: string | null) {
   const timestamp = lastSeenAt ? Date.parse(lastSeenAt) : NaN;
   if (!Number.isFinite(timestamp)) return { active: false, label: "No activity recorded" };

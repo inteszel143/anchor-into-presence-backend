@@ -27,11 +27,11 @@ function purchase(overrides = {}) {
     startTime: '2026-01-01T00:00:00Z', lineItems: [{ productId: 'annual', latestSuccessfulOrderId: 'GPA.123',
       expiryTime: '2027-01-01T00:00:00Z', offerDetails: { basePlanId: 'yearly', offerId: 'partner' } }], ...overrides };
 }
-function service({ fetchPurchase, tokens = ['private-token'], untracked = 0, auth = () => Response.json({ access_token: 'private-bearer' }), missingConfig = false } = {}) {
+function service({ fetchPurchase, tokens = ['private-token'], untracked = 0, auth = () => Response.json({ access_token: 'private-bearer' }), missingConfig = false, customers = new Map() } = {}) {
   const requests = [];
   let pipeline;
   const api = load('src/lib/googlePlayOffers.ts', {
-    './offerCustomers': { findOfferCustomers: async () => new Map() },
+    './offerCustomers': { findOfferCustomers: async () => customers },
     'node:crypto': crypto, 'node:path': path,
     'node:fs/promises': { readFile: async () => JSON.stringify({ type: 'service_account', client_email: 'service@example.test', private_key: 'private-key' }) },
     jsonwebtoken: { sign: () => 'private-assertion' },
@@ -220,4 +220,75 @@ test('a concurrent unique-key conflict succeeds only for the winning account', a
   assert.equal((await POST(req)).status, 201);
   winner = 'other';
   assert.equal((await POST(req)).status, 409);
+});
+
+
+test('subscriber view includes regular plans and free trials without changing offer filtering', async () => {
+  const ordinary = { productId: 'monthly', latestSuccessfulOrderId: 'GPA.regular', expiryTime: '2027-01-01T00:00:00Z', offerDetails: { basePlanId: 'monthly' } };
+  const customer = { status: 'matched', accountId: 'u1', name: 'Member', email: 'member@example.test' };
+  const api = service({ customers: new Map([['private-token', customer]]), fetchPurchase: () => Response.json(purchase({ lineItems: [ordinary] })) });
+  assert.equal((await api.getGooglePlayOffers('production')).offers.length, 0);
+  const report = await api.getGooglePlaySubscribers('production');
+  assert.equal(report.totals.subscribers, 1);
+  assert.equal(report.subscribers[0].subscriptions[0].kind, 'Regular subscription');
+  assert.ok(!JSON.stringify(report).includes('private-token'));
+  const trial = api.mapGooglePlayOffers(purchase({ lineItems: [{ ...ordinary, offerDetails: { offerId: 'trial' }, offerPhase: { freeTrial: {} } }] }), 't', 'production', true);
+  assert.equal(trial[0].pricingPhase, 'Free trial');
+  assert.equal(api.mapGooglePlayOffers(purchase({ testPurchase: {} }), 't', 'production', true).length, 0);
+  assert.equal(api.mapGooglePlayOffers(purchase({ subscriptionState: 'SUBSCRIPTION_STATE_PENDING' }), 't', 'production', true).length, 0);
+  assert.equal(api.mapGooglePlayOffers(purchase({ lineItems: [{ productId: 'deferred' }] }), 't', 'production', true).length, 0);
+});
+
+test('subscriber totals deduplicate accounts and handle access, uncertainty, and conflicts', () => {
+  const { summarizeGoogleSubscribers } = service();
+  const now = Date.parse('2026-06-01');
+  const item = (accountId, state, expiry = now + 86400000) => ({
+    id: `${accountId}-${state}`, state: `SUBSCRIPTION_STATE_${state}`, expiresAt: expiry,
+    customer: { status: 'matched', accountId, name: accountId, email: null },
+  });
+  const report = summarizeGoogleSubscribers({ environment: 'production', checkedAt: now,
+    checkedPurchases: 12, untrackedPurchases: 2, unavailablePurchases: 1,
+    offers: [item('active', 'ACTIVE'), item('active', 'ACTIVE'), item('grace', 'IN_GRACE_PERIOD'),
+      item('canceled', 'CANCELED'), item('ended', 'CANCELED', now - 1), item('hold', 'ON_HOLD'),
+      item('paused', 'PAUSED'), item('expired', 'EXPIRED', now - 1), item('unknown', 'NEW_STATE'),
+      item('missing-date', 'ACTIVE', null), item('partial', 'EXPIRED', now - 1),
+      { ...item('conflict', 'ACTIVE'), customer: { status: 'conflict' } }],
+    unavailableCustomers: [{ status: 'matched', accountId: 'partial', name: 'Partial', email: null }],
+  });
+  assert.equal(report.totals.subscribers, 10);
+  assert.equal(report.totals.active, 3);
+  assert.equal(report.totals.inactive, 4);
+  assert.equal(report.totals.needsReview, 3);
+  assert.equal(report.unmatchedItems, 1);
+  assert.equal(report.untrackedPurchases, 2);
+  assert.equal(report.subscribers.find(s => s.id === 'partial').unavailablePurchases, 1);
+});
+
+test('subscriber service retains unavailable account checks without classifying them inactive', async () => {
+  const api = service({ customers: new Map([['private-token', { status: 'matched', accountId: 'u', name: 'User', email: null }]]),
+    fetchPurchase: () => Response.json({}, { status: 410 }) });
+  const report = await api.getGooglePlaySubscribers('production');
+  assert.equal(report.unavailablePurchases, 1);
+  assert.equal(report.totals.subscribers, 0);
+  assert.equal(report.totals.inactive, 0);
+  assert.equal(report.totals.needsReview, 1);
+});
+
+test('subscriber route authenticates admins, validates environment and returns no-store', async () => {
+  let calls = 0;
+  const { GET } = load('src/app/api/admin/subscribers/google/route.ts', {
+    'next/server': { NextResponse }, jsonwebtoken: jwt,
+    '@/lib/googlePlayOffers': { GooglePlayError: Error, getGooglePlaySubscribers: async environment => { calls++; return { environment, subscribers: [] }; } },
+  });
+  const request = (role, environment = 'production') => new NextRequest(`https://example.test/api/admin/subscribers/google?environment=${environment}`, {
+    headers: role ? { cookie: `admin_session=${jwt.sign({ role }, 'test-secret')}` } : {},
+  });
+  assert.equal((await GET(request())).status, 401);
+  assert.equal((await GET(request('user'))).status, 401);
+  assert.equal((await GET(request('admin', 'sandbox'))).status, 400);
+  assert.equal(calls, 0);
+  const response = await GET(request('admin', 'test'));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assert.equal((await response.json()).environment, 'test');
 });

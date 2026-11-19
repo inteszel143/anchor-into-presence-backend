@@ -80,3 +80,45 @@ From `frontend/`:
 ```sh
 flutter test test/purchase_reporting_test.dart test/purchase_feedback_test.dart test/subscription_plan_card_test.dart
 ```
+
+## Google Subscribers view (2026-11-20)
+
+`/admin/offers` now provides **Subscribers** and **Promotional offers** for both
+stores. Google Subscribers uses `/api/admin/subscribers/google` and the existing
+Play credentials. It includes regular base plans, trials and offers. The offer
+view continues to exclude regular-price purchases without an offer or code.
+
+The subscriber report groups by app account ID, so multiple saved tokens or
+subscription items do not inflate account totals. Google confirms the subscription
+state; the account association comes from saved app records, not verified Google
+ownership. Conflicting or missing account associations are excluded and counted
+as unmatched items. Active includes active/grace-period items and canceled items
+with a future expiry. Paused and on-hold items are inactive. Unknown states,
+missing expiry dates and unavailable token checks require review. Pending purchases
+and deferred items without a successful order remain excluded.
+
+Counts are limited to saved, retrievable records. Missing-token records cannot
+be assigned to production/test from Google, and unavailable checks may belong to
+either environment. Their coverage counters span both environments. Inactive is
+based on available checked subscriptions, not proof that every purchase for that
+account has been recovered. This does not replace Users dashboard estimates or
+change app access/billing.
+
+### Rollout / owner actions
+
+- Deploy the backend/admin changes. No new environment variables, database
+  migration, products, or offers are needed for this view.
+- If the existing Google report already loads verified purchases, keep the same
+  Google configuration. Otherwise follow Server setup above: enable the API,
+  grant the service account Play billing permissions, and configure the package
+  name and service-account file on the server.
+- The current app source already submits Android purchase tokens. Confirm that
+  the installed Android release includes this reporting code. If not, release
+  it before attempting to recover old purchases.
+- On the updated Android app, use Restore Purchases while signed into the app
+  account and Play account that owns an eligible subscription. Refresh Google →
+  Subscribers and choose Production or Test purchases as appropriate. Recovery
+  of every historical/expired purchase is not guaranteed; no repurchase is needed.
+- Compare a known regular subscriber and a test subscriber with Play Console.
+  This change has local automated coverage; production credentials, saved-token
+  coverage, and actual store responses still need a deployment smoke check.
