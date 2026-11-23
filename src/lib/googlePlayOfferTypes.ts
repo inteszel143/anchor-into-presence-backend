@@ -45,5 +45,16 @@ export type GoogleSubscriberReport = {
   unavailablePurchases: number;
   unmatchedItems: number;
   subscribers: GoogleSubscriber[];
+  recordedPurchases: GoogleRecordedPurchase[];
   totals: { subscribers: number; active: number; inactive: number; needsReview: number };
+};
+
+// App records only: neither current access nor store environment is verified.
+export type GoogleRecordedPurchase = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  productId: string | null;
+  orderId: string | null;
+  purchasedAt: number | null;
 };

@@ -34,6 +34,25 @@ test('Google offers page exposes both reports and defaults to subscribers', () =
   assert.match(render(file, ['google', 'offers']), /Google offers view/);
   assert.match(render(file, ['apple', 'subscribers']), /Apple subscribers view/);
 });
+test('legacy purchases remain visible without being counted as confirmed subscribers', () => {
+  const report = { environment: 'production', checkedAt: 1, checkedPurchases: 0, untrackedPurchases: 1,
+    unavailablePurchases: 0, unmatchedItems: 0, totals: { subscribers: 0, active: 0, inactive: 0, needsReview: 0 },
+    subscribers: [], recordedPurchases: [{ id: 'legacy', name: 'Legacy member', email: 'legacy@example.test',
+      productId: 'founding.annual', orderId: 'GPA.legacy', purchasedAt: 1787346405070 }] };
+  const file = 'src/app/admin/offers/GoogleSubscribersReport.tsx';
+  const html = render(file, ['production', report, false, '', 0, '', '', 1]);
+  for (const text of ['Legacy member', 'legacy@example.test', 'founding.annual', 'GPA.legacy',
+    'Not verified with Google', 'Subscription status unknown', 'Confirmed subscribers', 'Recorded purchases']) assert.ok(html.includes(text), text);
+  assert.equal((html.match(/<table/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /Recorded purchases · Not verified with Google/);
+  assert.match(html, /Subscriber list/);
+  assert.match(html, /1 entries/);
+  assert.match(render(file, ['production', report, false, '', 0, '', 'review', 1]), /GPA.legacy/);
+  assert.doesNotMatch(render(file, ['production', report, false, '', 0, '', 'SUBSCRIPTION_STATE_ACTIVE', 1]), /GPA.legacy/);
+  assert.doesNotMatch(render(file, ['production', report, false, '', 0, 'no-match', '', 1]), /GPA.legacy/);
+  assert.match(render(file, ['production', report, false, '', 0, 'legacy@example.test', '', 1]), /GPA.legacy/);
+  assert.match(render(file, ['test', { ...report, environment: 'test' }, false, '', 0, '', '', 1]), /GPA.legacy/);
+});
 test('subscriber report renders regular subscriptions, coverage, test selection and retry', () => {
   const file = 'src/app/admin/offers/GoogleSubscribersReport.tsx';
   const report = { environment: 'production', checkedAt: 1, checkedPurchases: 1, untrackedPurchases: 2,

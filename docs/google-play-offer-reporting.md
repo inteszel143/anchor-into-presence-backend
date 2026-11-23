@@ -122,3 +122,21 @@ change app access/billing.
 - Compare a known regular subscriber and a test subscriber with Play Console.
   This change has local automated coverage; production credentials, saved-token
   coverage, and actual store responses still need a deployment smoke check.
+
+
+### Recorded purchases without tokens (2026-11-23)
+
+Google Subscribers also lists saved Android purchases without a token in a
+**Subscriber list**, alongside Google-confirmed subscriptions. Each recorded
+purchase retains its own unverified status in the Verification column. This includes
+legacy GPA order records without a platform field. Rows are deduplicated by app
+account and order, searchable by customer/product/order, and paginated. They show
+recorded purchase dates and existing customer associations, without inventing
+Google status, expiry, discount, or payment amounts. Missing/deleted customers
+remain visible with an unavailable-account label.
+
+These records have unknown store environment, so the same explicitly labeled
+entries appear in Production and Test. Its record count is separate from
+Google-confirmed account totals. This is a read-only reporting change: no customer
+purchase insertion, entitlement change, or restore is required to display existing
+records. Google verification still requires a saved token.

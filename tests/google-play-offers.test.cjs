@@ -37,7 +37,7 @@ function service({ fetchPurchase, tokens = ['private-token'], untracked = 0, aut
     jsonwebtoken: { sign: () => 'private-assertion' },
     '@/lib/db': { connectDB: async () => {} },
     '@/models/UserPurchase': { UserPurchase: {
-      aggregate: value => { pipeline = value; return { option: async () => tokens.map(_id => ({ _id })) }; },
+      aggregate: value => { pipeline = value; return { option: async () => value[0].$match.$or ? [] : tokens.map(_id => ({ _id })) }; },
       countDocuments: () => ({ maxTimeMS: async () => untracked }),
     } },
   }, {
@@ -291,4 +291,19 @@ test('subscriber route authenticates admins, validates environment and returns n
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal((await response.json()).environment, 'test');
+});
+
+
+test('recorded Google purchases select missing tokens and expose only display fields', async () => {
+  const api = service();
+  await api.getGoogleRecordedPurchases();
+  const stages = api.pipeline();
+  assert.deepEqual(JSON.parse(JSON.stringify(stages[0].$match.purchaseToken)), { $in: [null, ''] });
+  assert.equal(stages[0].$match.$or[0].platform, 'android');
+  assert.equal(String(stages[0].$match.$or[1].purchaseId), '/^GPA\\./');
+  assert.ok(stages.some(s => s.$group?._id.userId === '$userId'));
+  const fields = Object.keys(stages.at(-1).$project).sort();
+  assert.deepEqual(fields, ['_id', 'email', 'id', 'name', 'orderId', 'productId', 'purchasedAt']);
+  const report = await api.getGooglePlaySubscribers('production');
+  assert.ok(Array.isArray(report.recordedPurchases));
 });

@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import { findOfferCustomers } from "./offerCustomers";
 import { UserPurchase } from "@/models/UserPurchase";
-import type { GooglePlayEnvironment, GooglePlayOffer, GooglePlayOfferReport, GoogleSubscriber, GoogleSubscriberReport } from "./googlePlayOfferTypes";
+import type { GooglePlayEnvironment, GooglePlayOffer, GooglePlayOfferReport, GoogleSubscriber, GoogleSubscriberReport, GoogleRecordedPurchase } from "./googlePlayOfferTypes";
 
 export class GooglePlayError extends Error {}
 
@@ -187,7 +187,7 @@ export function summarizeGoogleSubscribers(report: GooglePlayOfferReport): Googl
   }
   const subscribers = [...accounts.values()].sort((a, b) => (a.name ?? a.email ?? a.id).localeCompare(b.name ?? b.email ?? b.id));
   return { environment: report.environment, checkedAt: report.checkedAt, checkedPurchases: report.checkedPurchases,
-    untrackedPurchases: report.untrackedPurchases, unavailablePurchases: report.unavailablePurchases, unmatchedItems, subscribers,
+    untrackedPurchases: report.untrackedPurchases, unavailablePurchases: report.unavailablePurchases, unmatchedItems, subscribers, recordedPurchases: [],
     totals: {
       subscribers: subscribers.filter(a => a.subscriptions.length > 0).length,
       active: subscribers.filter(a => a.active).length,
@@ -197,5 +197,30 @@ export function summarizeGoogleSubscribers(report: GooglePlayOfferReport): Googl
 }
 
 export async function getGooglePlaySubscribers(environment: GooglePlayEnvironment): Promise<GoogleSubscriberReport> {
-  return summarizeGoogleSubscribers(await getGooglePlayOffers(environment, true));
+  const report = summarizeGoogleSubscribers(await getGooglePlayOffers(environment, true));
+  report.recordedPurchases = await getGoogleRecordedPurchases();
+  return report;
+}
+
+export async function getGoogleRecordedPurchases(): Promise<GoogleRecordedPurchase[]> {
+  await connectDB();
+  return UserPurchase.aggregate<GoogleRecordedPurchase>([
+    { $match: {
+      $or: [{ platform: "android" }, { purchaseId: /^GPA\./ }],
+      purchaseToken: { $in: [null, ""] },
+    } },
+    { $sort: { purchaseDate: -1, _id: -1 } },
+    // Legacy restores can have duplicate rows. Keep one record per account/order.
+    { $group: { _id: { userId: "$userId", order: { $ifNull: ["$purchaseId", "$_id"] } }, record: { $first: "$$ROOT" } } },
+    { $replaceRoot: { newRoot: "$record" } },
+    { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "account" } },
+    { $sort: { purchaseDate: -1, _id: -1 } },
+    { $project: {
+      _id: 0, id: { $toString: "$_id" },
+      name: { $ifNull: [{ $arrayElemAt: ["$account.name", 0] }, null] },
+      email: { $ifNull: [{ $arrayElemAt: ["$account.email", 0] }, null] },
+      productId: { $ifNull: ["$productId", null] }, orderId: { $ifNull: ["$purchaseId", null] },
+      purchasedAt: { $convert: { input: "$purchaseDate", to: "double", onError: null, onNull: null } },
+    } },
+  ]).option({ maxTimeMS: 10000 });
 }
