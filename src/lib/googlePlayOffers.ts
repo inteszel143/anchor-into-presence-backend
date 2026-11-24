@@ -72,7 +72,7 @@ export function mapGooglePlayOffers(purchase: PlayPurchase, token: string, envir
   });
 }
 
-async function accessToken(signal: AbortSignal): Promise<string> {
+export async function accessToken(signal: AbortSignal): Promise<string> {
   const keyPath = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_PATH;
   if (!keyPath || !process.env.GOOGLE_PLAY_PACKAGE_NAME) {
     throw new GooglePlayError("Google Play is not configured. Set GOOGLE_PLAY_SERVICE_ACCOUNT_PATH and GOOGLE_PLAY_PACKAGE_NAME on the server.");

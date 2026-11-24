@@ -17,6 +17,8 @@ const UserPurchaseSchema = new mongoose.Schema(
       type: String,
     },
     platform: { type: String, enum: ["android", "ios"] },
+    advertisingPending: { type: Boolean, select: false },
+    advertisingAnonId: { type: String, select: false },
     // Server-side Google reporting only. Never include tokens in user history.
     purchaseToken: { type: String, select: false },
     activityId: {

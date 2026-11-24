@@ -8,6 +8,7 @@ import { FavoriteActivities } from "@/models/FavoriteActivities";
 import { UserActivityLogs } from "@/models/UserActivityLogs";
 import { UserLoginStreak } from "@/models/UserLoginStreak";
 import { UserPurchase } from "@/models/UserPurchase";
+import { AdConsent, AdJob, AdPayment } from "@/models/Advertising";
 import { Support } from "@/models/Support";
 import { UserScheduleNotification } from "@/models/UserScheduleNotification";
 import { ScheduledCronJob } from "@/models/ScheduledCronJob";
@@ -88,7 +89,13 @@ export async function deleteUserAccount(id: string, confirmation: string) {
         await Comments.updateOne({ _id: commentId }, { $set: { likesCount, repliesCount } }, { session: session ?? undefined });
       }
       // Transaction operations must run sequentially.
-      for (const model of [FavoriteActivities, UserActivityLogs, UserLoginStreak, UserPurchase, Support, UserScheduleNotification, ScheduledCronJob]) {
+      const storePurchases = await UserPurchase.find({ userId }).select('purchaseId +purchaseToken').session(session);
+      await AdJob.deleteMany({ $or: [
+        { userId },
+        { transactionId: { $in: storePurchases.map(p => p.purchaseId).filter(Boolean) } },
+        { purchaseToken: { $in: storePurchases.map(p => p.purchaseToken).filter(Boolean) } },
+      ] }, { session: session ?? undefined });
+      for (const model of [FavoriteActivities, UserActivityLogs, UserLoginStreak, AdConsent, AdJob, AdPayment, UserPurchase, Support, UserScheduleNotification, ScheduledCronJob]) {
         await model.deleteMany({ userId }, { session: session ?? undefined });
       }
       if (user.email) await PendingRegistration.deleteMany({ email: user.email }, { session: session ?? undefined });

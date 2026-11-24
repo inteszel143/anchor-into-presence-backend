@@ -72,7 +72,7 @@ function deletion({ confirmation = 'person@example.com', failAt, missing = false
   const session = { withTransaction: async callback => { try { if (standalone) throw Object.assign(new Error('Transaction numbers are only allowed on a replica set member or mongos'), { code: 20 }); await callback(); } catch (error) { rolledBack = true; throw error; } }, endSession: async () => { ended = true; } };
   const q = value => ({ select() { return this; }, then(resolve, reject) { return Promise.resolve(value).then(resolve, reject); }, session: async actual => { assert.equal(actual, standalone ? null : session); return value; } });
   const mocks = { mongoose: { startSession: async () => session }, '@/cron/cronRegistry': { cronJobRegistry: new Map() } };
-  const names = ['User', 'Posts', 'Comments', 'Reactions', 'Shares', 'FavoriteActivities', 'UserActivityLogs', 'UserLoginStreak', 'UserPurchase', 'Support', 'UserScheduleNotification', 'ScheduledCronJob', 'PendingRegistration'];
+  const names = ['User', 'Posts', 'Comments', 'Reactions', 'Shares', 'FavoriteActivities', 'UserActivityLogs', 'UserLoginStreak', 'AdConsent', 'AdJob', 'AdPayment', 'UserPurchase', 'Support', 'UserScheduleNotification', 'ScheduledCronJob', 'PendingRegistration'];
   for (const name of names) {
     const values = name === 'Posts' ? [{ _id: 'own-post' }] : name === 'Comments' ? [{ _id: 'own-comment', postId: 'other-post', parentCommentId: 'parent' }] : name === 'Reactions' ? [{ targetType: 'post', targetId: 'other-post' }] : [];
     const model = { findById: () => q(missing ? null : { _id: id, email: 'person@example.com', deletionPlan: savedPlan }), find: () => q(removed ? [] : values), countDocuments: () => q(2) };
@@ -88,6 +88,7 @@ function deletion({ confirmation = 'person@example.com', failAt, missing = false
     };
     mocks[`@/models/${name}`] = { [name]: model };
   }
+  mocks['@/models/Advertising'] = Object.assign({}, ...['AdConsent', 'AdJob', 'AdPayment'].map(n => mocks[`@/models/${n}`]));
   const helper = load('src/lib/deleteUserAccount.ts', mocks);
   return { run: () => helper.deleteUserAccount(id, confirmation), writes, recovery: () => ({ savedPlan, blocked }), state: () => ({ rolledBack, ended }) };
 }
@@ -102,7 +103,7 @@ test('wrong confirmation and missing accounts never delete records', async () =>
 test('deletion cleans dependent data and repairs community counts in the same transaction', async () => {
   const d = deletion();
   await d.run();
-  for (const name of ['Reactions', 'Shares', 'Comments', 'Posts', 'FavoriteActivities', 'UserActivityLogs', 'UserLoginStreak', 'UserPurchase', 'Support', 'UserScheduleNotification', 'ScheduledCronJob', 'PendingRegistration']) assert.ok(d.writes.some(write => write.name === name && write.op === 'deleteMany'), name);
+  for (const name of ['Reactions', 'Shares', 'Comments', 'Posts', 'FavoriteActivities', 'UserActivityLogs', 'UserLoginStreak', 'AdConsent', 'AdJob', 'AdPayment', 'UserPurchase', 'Support', 'UserScheduleNotification', 'ScheduledCronJob', 'PendingRegistration']) assert.ok(d.writes.some(write => write.name === name && write.op === 'deleteMany'), name);
   const replies = d.writes.find(write => write.name === 'Comments' && write.op === 'updateMany');
   assert.equal(replies.update.$set.parentCommentId, null);
   const counts = d.writes.find(write => write.name === 'Posts' && write.op === 'updateOne');

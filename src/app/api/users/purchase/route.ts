@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/getAuthUser";
 import { User } from "@/models/User";
 import { complimentaryBillingRecord } from "@/lib/complimentaryBillingHistory";
 import { UserPurchase } from "@/models/UserPurchase";
+import { AdConsent } from "@/models/Advertising";
 import { apiErrorResponse } from "@/lib/apiResponse";
 
 export async function GET(req: NextRequest) {
@@ -93,6 +94,9 @@ export async function POST(req: NextRequest) {
     // Transaction IDs identify delivery, not campaign usage. Restore/retry must
     // return success for the same account without inserting another purchase.
     const store = platform ?? (purchaseId.startsWith("GPA.") ? "android" : "ios");
+    const adConsent = process.env.AD_MEASUREMENT_ENABLED === 'true'
+      ? await AdConsent.findOne({ userId, allowed: true, platform: store, expiresAt: { $gt: new Date() } }).select('+anonId').catch(() => null)
+      : null;
     const deliveryKey = createHash("sha256").update(`${store}:${purchaseId}`).digest("hex");
     await UserPurchase.init(); // Ensure the unique retry key exists before writes.
     const existing = await UserPurchase.findOne({ purchaseId,
@@ -108,7 +112,7 @@ export async function POST(req: NextRequest) {
     try {
       const saved = await UserPurchase.findOneAndUpdate(
         existing ? { _id: existing._id, userId } : { deliveryKey, userId },
-        { $setOnInsert: values, $set: { deliveryKey, platform: store,
+        { $setOnInsert: { ...values, advertisingPending: true, ...(adConsent?.anonId ? { advertisingAnonId: adConsent.anonId } : {}) }, $set: { deliveryKey, platform: store,
           ...(purchaseToken ? { purchaseToken } : {}),
         } },
         { upsert: true, new: true, runValidators: true },
