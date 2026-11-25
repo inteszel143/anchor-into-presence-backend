@@ -7,6 +7,8 @@ export type AppleSubscription = {
   expiresAt: number | null;
   autoRenewEnabled: boolean | null;
   offer: string;
+  offerType: number | null;
+  offerIdentifier: string | null;
   signedAt: number;
 };
 export type AppleSubscriber = {

@@ -37,6 +37,8 @@ export function mapAppleSubscriptions(body: unknown, environment: StoreEnvironme
         expiresAt: typeof transaction.expiresDate === "number" ? transaction.expiresDate : null,
         autoRenewEnabled: matching && [0, 1].includes(renewal?.autoRenewStatus) ? renewal?.autoRenewStatus === 1 : null,
         offer: transaction.offerType === 1 ? "Introductory offer / trial" : transaction.offerType === 2 ? "Promotional offer" : transaction.offerType === 3 ? "Offer code" : transaction.offerType === 4 ? "Win-back offer" : "Regular subscription",
+        offerType: typeof transaction.offerType === "number" ? transaction.offerType : null,
+        offerIdentifier: typeof transaction.offerIdentifier === "string" ? transaction.offerIdentifier : null,
         signedAt: transaction.signedDate,
       };
     });

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw, Search, Users } from "lucide-react";
 import type { StoreEnvironment } from "@/lib/appStoreOffers";
+import { anchorOfferSubscribers } from "@/lib/appleOfferCodes";
 import { appleReviewLabels } from "@/lib/appleSubscriberTypes";
 import type { AppleSubscriberReport } from "@/lib/appleSubscriberTypes";
 import { OfferMetricSkeleton, OfferTableSkeleton } from "./OfferSkeleton";
@@ -48,12 +49,9 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
   const query = search.trim().toLowerCase();
   // Use Apple's subscription snapshot independently of notification history.
   // Filter subscriptions as well as accounts so regular plans do not appear here.
-  const subscribers = (current?.subscribers ?? []).map(row => offersOnly ? {
-    ...row,
-    subscriptions: row.subscriptions.filter(sub => ["Offer code", "Promotional offer", "Win-back offer"].includes(sub.offer)),
-  } : row).filter(row => !offersOnly || row.subscriptions.length > 0);
+  const subscribers = offersOnly ? anchorOfferSubscribers(current?.subscribers ?? []) : current?.subscribers ?? [];
   const rows = subscribers.filter(row =>
-    `${row.name ?? ""} ${row.email ?? ""} ${row.subscriptions.map(s => `${s.productId} ${s.originalTransactionId}`).join(" ")}`.toLowerCase().includes(query) &&
+    `${row.name ?? ""} ${row.email ?? ""} ${row.subscriptions.map(s => `${s.productId} ${s.originalTransactionId} ${s.offerIdentifier ?? ""}`).join(" ")}`.toLowerCase().includes(query) &&
     (!status || (status === "review" ? row.conflict || row.unavailablePurchases > 0 : row.subscriptions.some(s => s.status === status)))
   );
   const reviewAccounts = subscribers.filter(row => row.conflict || row.unavailablePurchases > 0);
@@ -92,7 +90,7 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
       <p className={styles.help}>An account can have more than one issue. The list below shows the reason and next step for each affected account.</p>
     </section>}
     <section className={shared.card} aria-label={offersOnly ? "Apple offer subscribers" : "Apple subscribers"} aria-busy={loading}>
-      <div className={styles.sectionHeading}><div><h2>{offersOnly ? "Subscribers with promotional offers" : "Subscriber list"}</h2><p>{offersOnly ? "Offer-code, promotional-offer, and win-back subscriptions checked directly with Apple, including those missing from notification history. One row per app account; this does not confirm the exact code used." : "One row per app account. Renewals do not increase subscriber totals."}</p></div>{offersOnly && reportControls}</div>
+      <div className={styles.sectionHeading}><div><h2>{offersOnly ? "Subscribers with promotional offers" : "Subscriber list"}</h2><p>{offersOnly ? "Only ANCHORVIP and ANCHORAMBASSADOR offer-code subscriptions confirmed by Apple. One row per app account." : "One row per app account. Renewals do not increase subscriber totals."}</p></div>{offersOnly && reportControls}</div>
       {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load subscribers</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(n => n + 1)}>Try again</button></div> : loading ? <OfferTableSkeleton columns={3} label="Checking subscribers with Apple…" /> : <>
         <div className={`${shared.filters} ${styles.filters}`}>
           <label className={shared.searchLabel} htmlFor="subscriber-search">Search subscribers<span className={shared.searchField}><Search size={18} aria-hidden="true" /><input id="subscriber-search" type="search" placeholder="Name, email, product, or transaction" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></span></label>
@@ -104,7 +102,7 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
             <td><span className={shared.name}>{row.name || "Unnamed / deleted account"}</span><span className={shared.email}>{row.email || "Email unavailable"}</span></td>
             <td>{row.subscriptions.length ? row.subscriptions.map(sub => <div key={sub.originalTransactionId} className={styles.subscriptionItem}>
               <span className={shared.name}>{sub.productId} · {sub.status}</span>
-              <span className={shared.email}>{sub.offer} · Period ends {date(sub.expiresAt)} (UTC)</span>
+              <span className={shared.email}>{sub.offer}{sub.offerIdentifier ? ` · ${sub.offerIdentifier}` : ""} · Period ends {date(sub.expiresAt)} (UTC)</span>
               <span className={shared.email}>Auto-renew: {sub.autoRenewEnabled === null ? "Unavailable" : sub.autoRenewEnabled ? "On" : "Off"} · Original ID: {sub.originalTransactionId}</span>
             </div>) : "Subscription status unknown — no subscription confirmed"}</td>
             <td>
@@ -114,7 +112,7 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
               {!row.conflict && !row.unavailablePurchases && "Checked with Apple"}
             </td>
           </tr>)}</tbody>
-        </table></div> : <div className={shared.empty}><Users size={32} aria-hidden="true" /><h2>{search || status ? "No matching subscribers" : (offersOnly ? "No promotional subscriptions found" : "No subscribers found in saved purchases")}</h2><p>{search || status ? "Try another search or status." : (offersOnly ? "No saved purchases currently report an offer code, promotional offer, or win-back offer. This list reflects Apple’s current subscription snapshots, not all historical redemptions." : "An Apple purchase or restore must reach the app server before it can appear here.")}</p></div>}
+        </table></div> : <div className={shared.empty}><Users size={32} aria-hidden="true" /><h2>{search || status ? "No matching subscribers" : (offersOnly ? "No promotional subscriptions found" : "No subscribers found in saved purchases")}</h2><p>{search || status ? "Try another search or status." : (offersOnly ? "No saved purchases currently report an Apple-confirmed ANCHORVIP or ANCHORAMBASSADOR offer code. Regular yearly subscriptions are excluded." : "An Apple purchase or restore must reach the app server before it can appear here.")}</p></div>}
         <div className={shared.footer}><span className={shared.results} role="status">{rows.length} accounts · Page {selectedPage} of {pages}</span><div className={styles.controls}><button type="button" className={shared.textButton} disabled={selectedPage <= 1} onClick={() => setPage(selectedPage - 1)}>Previous</button><button type="button" className={shared.textButton} disabled={selectedPage >= pages} onClick={() => setPage(selectedPage + 1)}>Next</button></div></div>
       </>}
     </section>

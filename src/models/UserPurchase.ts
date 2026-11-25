@@ -17,6 +17,16 @@ const UserPurchaseSchema = new mongoose.Schema(
       type: String,
     },
     platform: { type: String, enum: ["android", "ios"] },
+    // Reporting evidence fetched from Apple's authenticated server API.
+    appleOffer: {
+      offerType: Number,
+      offerIdentifier: String,
+      code: { type: String, enum: ["ANCHORVIP", "ANCHORAMBASSADOR"] },
+      environment: { type: String, enum: ["production", "sandbox"] },
+      originalTransactionId: String,
+      checkedAt: Date,
+    },
+    appleOfferCheckPending: Boolean,
     advertisingPending: { type: Boolean, select: false },
     advertisingAnonId: { type: String, select: false },
     // Server-side Google reporting only. Never include tokens in user history.

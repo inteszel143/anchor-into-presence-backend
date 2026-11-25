@@ -148,6 +148,7 @@ test('purchase endpoint accepts free offers, deduplicates retries, and rejects a
   const writes = [];
   let userId = 'u';
   const { POST } = load('src/app/api/users/purchase/route.ts', {
+    '@/lib/applePurchaseOffer': { checkApplePurchaseOffer: async () => null },
     '@/models/Advertising': { AdConsent: {} },
     '@/lib/subscriptionPlan': load('src/lib/subscriptionPlan.ts', {}),
     '@/models/User': { User: {} },
@@ -203,6 +204,7 @@ test('renewal settings and regular price are separate from current discount phas
 test('a concurrent unique-key conflict succeeds only for the winning account', async () => {
   let winner = 'u';
   const { POST } = load('src/app/api/users/purchase/route.ts', {
+    '@/lib/applePurchaseOffer': { checkApplePurchaseOffer: async () => null },
     '@/models/Advertising': { AdConsent: {} },
     '@/lib/subscriptionPlan': load('src/lib/subscriptionPlan.ts', {}),
     '@/models/User': { User: {} },

@@ -29,6 +29,8 @@ function route(user,purchases) {
   '@/lib/getAuthUser':{getAuthUser:async()=>({userId:'account'})},
   '@/lib/apiResponse':{apiErrorResponse:e=>{throw e;}},
   '@/lib/complimentaryBillingHistory':helper,
+  '@/lib/applePurchaseOffer': { checkApplePurchaseOffer: async () => null },
+    '@/models/Advertising':{AdConsent:{}},
   '@/models/User':{User:{findById:id=>{assert.equal(id,'account');return{select:()=>({lean:async()=>user})};}}},
   '@/models/UserPurchase':{UserPurchase:{
    find:filter=>{assert.equal(filter.userId,'account');return{sort:()=>({limit:n=>({lean:async()=>purchases.slice(0,n)})})};},

@@ -1,3 +1,4 @@
+import { checkApplePurchaseOffer } from "@/lib/applePurchaseOffer";
 import { subscriptionPlan } from "@/lib/subscriptionPlan";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -105,6 +106,12 @@ export async function POST(req: NextRequest) {
     if (existing && String(existing.userId) !== String(userId)) {
       return NextResponse.json({ message: "This purchase is already associated with another account.", status: false }, { status: 409 });
     }
+    // A reporting outage must not block purchase delivery. Restore/retry checks again;
+    // the admin report also checks Apple directly. Never replace known evidence on failure.
+    let appleOffer;
+    if (store === "ios") {
+      try { appleOffer = await checkApplePurchaseOffer(purchaseId, productId); } catch { /* pending verification */ }
+    }
     const values = {
       userId, productId, purchaseId, amount, purchaseDate: date, planType: subscriptionPlan(productId, planType),
       currencySymbol,
@@ -114,6 +121,7 @@ export async function POST(req: NextRequest) {
         existing ? { _id: existing._id, userId } : { deliveryKey, userId },
         { $setOnInsert: { ...values, advertisingPending: true, ...(adConsent?.anonId ? { advertisingAnonId: adConsent.anonId } : {}) }, $set: { deliveryKey, platform: store,
           ...(purchaseToken ? { purchaseToken } : {}),
+          ...(store === "ios" ? { appleOfferCheckPending: !appleOffer, ...(appleOffer ? { appleOffer } : {}) } : {}),
         } },
         { upsert: true, new: true, runValidators: true },
       );
