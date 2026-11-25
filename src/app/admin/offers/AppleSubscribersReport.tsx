@@ -12,8 +12,13 @@ function date(value: number | null) {
   return value === null ? "Unavailable" : new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(value);
 }
 
-export default function AppleSubscribersReport() {
-  const [environment, setEnvironment] = useState<StoreEnvironment>("production");
+export default function AppleSubscribersReport({ offersOnly = false, environment: selectedEnvironment, refreshKey = 0 }: {
+  offersOnly?: boolean;
+  environment?: StoreEnvironment;
+  refreshKey?: number;
+} = {}) {
+  const [localEnvironment, setEnvironment] = useState<StoreEnvironment>("production");
+  const environment = selectedEnvironment ?? localEnvironment;
   const [report, setReport] = useState<AppleSubscriberReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,17 +42,23 @@ export default function AppleSubscribersReport() {
       }
     })();
     return () => controller.abort();
-  }, [environment, refresh]);
+  }, [environment, refresh, refreshKey]);
   const current = !loading && !error && report?.environment === environment ? report : null;
   const query = search.trim().toLowerCase();
-  const rows = (current?.subscribers ?? []).filter(row =>
+  // Use Apple's subscription snapshot independently of notification history.
+  // Filter subscriptions as well as accounts so regular plans do not appear here.
+  const subscribers = (current?.subscribers ?? []).map(row => offersOnly ? {
+    ...row,
+    subscriptions: row.subscriptions.filter(sub => ["Offer code", "Promotional offer", "Win-back offer"].includes(sub.offer)),
+  } : row).filter(row => !offersOnly || row.subscriptions.length > 0);
+  const rows = subscribers.filter(row =>
     `${row.name ?? ""} ${row.email ?? ""} ${row.subscriptions.map(s => `${s.productId} ${s.originalTransactionId}`).join(" ")}`.toLowerCase().includes(query) &&
     (!status || (status === "review" ? row.conflict || row.unavailablePurchases > 0 : row.subscriptions.some(s => s.status === status)))
   );
   const pages = Math.max(1, Math.ceil(rows.length / 25));
   const selectedPage = Math.min(page, pages);
   return <div className={shared.page}>
-    <div className={shared.heading}>
+    {!offersOnly && <><div className={shared.heading}>
       <div><p className={shared.eyebrow}>Apple App Store</p><h1>Subscribers</h1><p className={shared.subtitle}>Regular subscriptions, trials, and offers, checked directly with Apple.</p></div>
       <div className={styles.controls}>
         <label htmlFor="subscriber-environment">Environment<select id="subscriber-environment" value={environment} onChange={event => { setEnvironment(event.target.value as StoreEnvironment); setSearch(""); setStatus(""); }}><option value="production">Production</option><option value="sandbox">Sandbox</option></select></label>
@@ -63,9 +74,10 @@ export default function AppleSubscribersReport() {
         { label: "Accounts needing review", value: current?.totals.needsReview, detail: "Unavailable checks or account conflicts" },
       ].map(metric => <div key={metric.label} className={styles.metric}><div><span>{metric.label}</span></div><strong>{loading ? <OfferMetricSkeleton /> : metric.value ?? "—"}</strong><p>{metric.detail}</p></div>)}
     </div>
+    </>}
     {current && current.totals.needsReview > 0 && <div className={styles.notice} role="status"><p>Some accounts could not be fully checked. Totals may be incomplete. Missing IDs, purchases in the other environment, and Apple connection failures require review. {current.untrackedPurchases} purchase records have no usable Apple transaction ID. Conflicting account associations are excluded from subscriber totals.</p></div>}
-    <section className={shared.card} aria-label="Apple subscribers" aria-busy={loading}>
-      <div className={styles.sectionHeading}><div><h2>Subscriber list</h2><p>One row per app account. Renewals do not increase subscriber totals.</p></div></div>
+    <section className={shared.card} aria-label={offersOnly ? "Apple offer subscribers" : "Apple subscribers"} aria-busy={loading}>
+      <div className={styles.sectionHeading}><div><h2>{offersOnly ? "Subscribers with promotional offers" : "Subscriber list"}</h2><p>{offersOnly ? "Offer-code, promotional-offer, and win-back subscriptions checked directly with Apple, including those missing from notification history. One row per app account; this does not confirm the exact code used." : "One row per app account. Renewals do not increase subscriber totals."}</p></div></div>
       {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load subscribers</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(n => n + 1)}>Try again</button></div> : loading ? <OfferTableSkeleton columns={3} label="Checking subscribers with Apple…" /> : <>
         <div className={`${shared.filters} ${styles.filters}`}>
           <label className={shared.searchLabel} htmlFor="subscriber-search">Search subscribers<span className={shared.searchField}><Search size={18} aria-hidden="true" /><input id="subscriber-search" type="search" placeholder="Name, email, product, or transaction" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></span></label>
@@ -82,7 +94,7 @@ export default function AppleSubscribersReport() {
             </div>) : "No subscription confirmed"}</td>
             <td>{row.conflict ? "Multiple accounts linked — review required" : row.unavailablePurchases ? `${row.unavailablePurchases} purchase checks unavailable` : "Checked with Apple"}</td>
           </tr>)}</tbody>
-        </table></div> : <div className={shared.empty}><Users size={32} aria-hidden="true" /><h2>{search || status ? "No matching subscribers" : "No subscribers found in saved purchases"}</h2><p>{search || status ? "Try another search or status." : "An Apple purchase or restore must reach the app server before it can appear here."}</p></div>}
+        </table></div> : <div className={shared.empty}><Users size={32} aria-hidden="true" /><h2>{search || status ? "No matching subscribers" : (offersOnly ? "No promotional subscriptions found" : "No subscribers found in saved purchases")}</h2><p>{search || status ? "Try another search or status." : (offersOnly ? "No saved purchases currently report an offer code, promotional offer, or win-back offer. Older redemptions may still appear in the transaction history below." : "An Apple purchase or restore must reach the app server before it can appear here.")}</p></div>}
         <div className={shared.footer}><span className={shared.results} role="status">{rows.length} accounts · Page {selectedPage} of {pages}</span><div className={styles.controls}><button type="button" className={shared.textButton} disabled={selectedPage <= 1} onClick={() => setPage(selectedPage - 1)}>Previous</button><button type="button" className={shared.textButton} disabled={selectedPage >= pages} onClick={() => setPage(selectedPage + 1)}>Next</button></div></div>
       </>}
     </section>

@@ -96,12 +96,13 @@ function AppleOffersReport() {
   return (
     <div className={shared.page}>
       <div className={shared.heading}>
-        <div><p className={shared.eyebrow}>Subscriptions</p><h1>Promotional offers</h1><p className={shared.subtitle}>Offer transactions reported by Apple for your app.</p></div>
+        <div><p className={shared.eyebrow}>Subscriptions</p><h1>Promotional offers</h1><p className={shared.subtitle}>Subscribers with promotional offers and Apple offer transaction history.</p></div>
         <div className={styles.controls}>
           <label htmlFor="store-environment">App Store environment<select id="store-environment" value={environment} onChange={event => { setEnvironment(event.target.value as StoreEnvironment); clearFilters(); }}><option value="production">Production</option><option value="sandbox">Sandbox</option></select></label>
           <button type="button" className={styles.reviewButton} disabled={loading} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
         </div>
       </div>
+      <AppleSubscribersReport key={environment} offersOnly environment={environment} refreshKey={refresh} />
       {loading ? <OfferNoticeSkeleton /> : <div className={styles.notice}><Tag size={19} aria-hidden="true" /><p>{current ? `Connected to Apple · ${environment === "production" ? "Production" : "Sandbox"} · ${displayDate(current.startDate)} – ${displayDate(current.endDate)} (UTC). ${current.notificationCount} notifications received.` : "App Store history is unavailable."} This report covers available notifications, not all historical redemptions. Renewals can produce multiple transactions for one offer.</p></div>}
       <div className={styles.metrics}>
         {[
