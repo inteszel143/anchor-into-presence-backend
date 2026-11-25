@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw, Search, Users } from "lucide-react";
 import type { StoreEnvironment } from "@/lib/appStoreOffers";
+import { appleReviewLabels } from "@/lib/appleSubscriberTypes";
 import type { AppleSubscriberReport } from "@/lib/appleSubscriberTypes";
 import { OfferMetricSkeleton, OfferTableSkeleton } from "./OfferSkeleton";
 import shared from "../users/users.module.css";
@@ -55,9 +56,16 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
     `${row.name ?? ""} ${row.email ?? ""} ${row.subscriptions.map(s => `${s.productId} ${s.originalTransactionId}`).join(" ")}`.toLowerCase().includes(query) &&
     (!status || (status === "review" ? row.conflict || row.unavailablePurchases > 0 : row.subscriptions.some(s => s.status === status)))
   );
+  const reviewAccounts = subscribers.filter(row => row.conflict || row.unavailablePurchases > 0);
+  const reviewBreakdown = [
+    { label: "Subscription linked to multiple accounts", count: reviewAccounts.filter(row => row.conflict).length },
+    ...Object.entries(appleReviewLabels).map(([reason, detail]) => ({ label: detail.label,
+      count: reviewAccounts.filter(row => row.reviewReasons?.some(value => value === reason)).length })),
+    { label: "Check incomplete; detailed reason unavailable", count: reviewAccounts.filter(row => row.unavailablePurchases > 0 && !row.reviewReasons?.length).length },
+  ].filter(item => item.count > 0);
   const pages = Math.max(1, Math.ceil(rows.length / 25));
   const selectedPage = Math.min(page, pages);
-  return <div className={shared.page}>
+  return <div className={`${shared.page} ${offersOnly ? styles.embeddedSubscribers : ""}`}>
     {!offersOnly && <><div className={shared.heading}>
       <div><p className={shared.eyebrow}>Apple App Store</p><h1>Subscribers</h1><p className={shared.subtitle}>Regular subscriptions, trials, and offers, checked directly with Apple.</p></div>
       <div className={styles.controls}>
@@ -68,20 +76,26 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
     <div className={styles.notice}><Users size={20} aria-hidden="true" /><p>Totals count unique app accounts with Apple-confirmed subscriptions, including expired subscriptions. Active includes billing grace periods. Coverage is limited to purchases saved by the app; this is not an App Store-wide total. Names and emails come from app accounts.</p></div>
     <div className={styles.metrics}>
       {[
-        { label: "Total subscribers", value: current?.totals.subscribers, detail: "Confirmed accounts, active or inactive" },
-        { label: "Active subscribers", value: current?.totals.active, detail: "Active or in billing grace period" },
-        { label: "Inactive subscribers", value: current?.totals.inactive, detail: "No active subscription; all checks complete" },
-        { label: "Accounts needing review", value: current?.totals.needsReview, detail: "Unavailable checks or account conflicts" },
+        { label: "Verified subscribers", value: current?.totals.subscribers, detail: "Confirmed accounts, active or inactive" },
+        { label: "Verified active subscribers", value: current?.totals.active, detail: "Active or in billing grace period" },
+        { label: "Verified inactive subscribers", value: current?.totals.inactive, detail: "No active subscription; all checks complete" },
+        { label: "Accounts with verification issues", value: current?.totals.needsReview, detail: "Incomplete checks or conflicting links—not necessarily inactive" },
       ].map(metric => <div key={metric.label} className={styles.metric}><div><span>{metric.label}</span></div><strong>{loading ? <OfferMetricSkeleton /> : metric.value ?? "—"}</strong><p>{metric.detail}</p></div>)}
     </div>
     </>}
-    {current && current.totals.needsReview > 0 && <div className={styles.notice} role="status"><p>Some accounts could not be fully checked. Totals may be incomplete. Missing IDs, purchases in the other environment, and Apple connection failures require review. {current.untrackedPurchases} purchase records have no usable Apple transaction ID. Conflicting account associations are excluded from subscriber totals.</p></div>}
+    {!offersOnly && current && reviewAccounts.length > 0 && <section className={shared.card} aria-label="Apple verification issues">
+      <div className={styles.sectionHeading}><div><h2>{reviewAccounts.length} accounts with verification issues</h2><p>These accounts have incomplete Apple checks or conflicting account links. This does not mean they are inactive or that a payment failed. An account may also have a verified subscription, so do not add this count to subscriber totals. App access is unchanged.</p></div>
+        <button type="button" className={styles.reviewButton} onClick={() => { setStatus("review"); setSearch(""); setPage(1); }}>Show affected accounts</button>
+      </div>
+      <ul>{reviewBreakdown.map(item => <li key={item.label}>{item.label}: {item.count} accounts</li>)}</ul>
+      <p className={styles.help}>An account can have more than one issue. The list below shows the reason and next step for each affected account.</p>
+    </section>}
     <section className={shared.card} aria-label={offersOnly ? "Apple offer subscribers" : "Apple subscribers"} aria-busy={loading}>
       <div className={styles.sectionHeading}><div><h2>{offersOnly ? "Subscribers with promotional offers" : "Subscriber list"}</h2><p>{offersOnly ? "Offer-code, promotional-offer, and win-back subscriptions checked directly with Apple, including those missing from notification history. One row per app account; this does not confirm the exact code used." : "One row per app account. Renewals do not increase subscriber totals."}</p></div></div>
       {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load subscribers</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(n => n + 1)}>Try again</button></div> : loading ? <OfferTableSkeleton columns={3} label="Checking subscribers with Apple…" /> : <>
         <div className={`${shared.filters} ${styles.filters}`}>
           <label className={shared.searchLabel} htmlFor="subscriber-search">Search subscribers<span className={shared.searchField}><Search size={18} aria-hidden="true" /><input id="subscriber-search" type="search" placeholder="Name, email, product, or transaction" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></span></label>
-          <label htmlFor="subscriber-status">Subscription status<select id="subscriber-status" value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}><option value="">All statuses</option>{["Active", "Grace period", "Expired", "Billing retry", "Revoked"].map(value => <option key={value}>{value}</option>)}<option value="review">Needs review</option></select></label>
+          <label htmlFor="subscriber-status">Subscription status<select id="subscriber-status" value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}><option value="">All statuses</option>{["Active", "Grace period", "Expired", "Billing retry", "Revoked"].map(value => <option key={value}>{value}</option>)}<option value="review">Verification issues</option></select></label>
         </div>
         {rows.length ? <div className={shared.tableScroll} role="region" aria-label="Subscriber table" tabIndex={0}><table className={shared.table}>
           <thead><tr><th scope="col">Subscriber</th><th scope="col">Subscriptions</th><th scope="col">Verification</th></tr></thead>
@@ -91,13 +105,18 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
               <span className={shared.name}>{sub.productId} · {sub.status}</span>
               <span className={shared.email}>{sub.offer} · Period ends {date(sub.expiresAt)} (UTC)</span>
               <span className={shared.email}>Auto-renew: {sub.autoRenewEnabled === null ? "Unavailable" : sub.autoRenewEnabled ? "On" : "Off"} · Original ID: {sub.originalTransactionId}</span>
-            </div>) : "No subscription confirmed"}</td>
-            <td>{row.conflict ? "Multiple accounts linked — review required" : row.unavailablePurchases ? `${row.unavailablePurchases} purchase checks unavailable` : "Checked with Apple"}</td>
+            </div>) : "Subscription status unknown — no subscription confirmed"}</td>
+            <td>
+              {row.conflict && <div className={styles.subscriptionItem}><span className={shared.name}>Subscription linked to multiple accounts</span><span className={shared.email}>Ask technical support to confirm the correct account association. Excluded from verified totals until resolved.</span></div>}
+              {row.reviewReasons?.map(reason => <div key={reason} className={styles.subscriptionItem}><span className={shared.name}>{appleReviewLabels[reason]?.label ?? "Verification incomplete"}</span><span className={shared.email}>{appleReviewLabels[reason]?.action ?? "Refresh or ask technical support to investigate."}</span></div>)}
+              {row.unavailablePurchases > 0 && !row.reviewReasons?.length && <div><span className={shared.name}>Verification incomplete</span><span className={shared.email}>Refresh to retrieve the reason. This does not confirm an inactive subscription.</span></div>}
+              {!row.conflict && !row.unavailablePurchases && "Checked with Apple"}
+            </td>
           </tr>)}</tbody>
-        </table></div> : <div className={shared.empty}><Users size={32} aria-hidden="true" /><h2>{search || status ? "No matching subscribers" : (offersOnly ? "No promotional subscriptions found" : "No subscribers found in saved purchases")}</h2><p>{search || status ? "Try another search or status." : (offersOnly ? "No saved purchases currently report an offer code, promotional offer, or win-back offer. Older redemptions may still appear in the transaction history below." : "An Apple purchase or restore must reach the app server before it can appear here.")}</p></div>}
+        </table></div> : <div className={shared.empty}><Users size={32} aria-hidden="true" /><h2>{search || status ? "No matching subscribers" : (offersOnly ? "No promotional subscriptions found" : "No subscribers found in saved purchases")}</h2><p>{search || status ? "Try another search or status." : (offersOnly ? "No saved purchases currently report an offer code, promotional offer, or win-back offer. This list reflects Apple’s current subscription snapshots, not all historical redemptions." : "An Apple purchase or restore must reach the app server before it can appear here.")}</p></div>}
         <div className={shared.footer}><span className={shared.results} role="status">{rows.length} accounts · Page {selectedPage} of {pages}</span><div className={styles.controls}><button type="button" className={shared.textButton} disabled={selectedPage <= 1} onClick={() => setPage(selectedPage - 1)}>Previous</button><button type="button" className={shared.textButton} disabled={selectedPage >= pages} onClick={() => setPage(selectedPage + 1)}>Next</button></div></div>
       </>}
     </section>
-    {current && <p className={styles.help}>{current.checkedPurchases} unique purchase IDs successfully checked · Updated {new Date(current.checkedAt).toLocaleString("en-US", { timeZone: "UTC" })} UTC. Auto-renew off can still mean active until the paid period ends. Complimentary access and lifetime purchases are not auto-renewable Apple subscriptions.</p>}
+    {!offersOnly && current && <p className={styles.help}>{current.checkedPurchases} unique purchase IDs successfully checked · Updated {new Date(current.checkedAt).toLocaleString("en-US", { timeZone: "UTC" })} UTC. Auto-renew off can still mean active until the paid period ends. Complimentary access and lifetime purchases are not auto-renewable Apple subscriptions.</p>}
   </div>;
 }

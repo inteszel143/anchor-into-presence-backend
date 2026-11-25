@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db";
 import { UserPurchase } from "@/models/UserPurchase";
 import { User } from "@/models/User";
 import { AppStoreError, createAppStoreClient, type StoreEnvironment } from "./appStoreOffers";
-import type { AppleSubscriber, AppleSubscriberReport, AppleSubscription } from "./appleSubscriberTypes";
+import type { AppleSubscriber, AppleSubscriberReport, AppleSubscription, AppleReviewReason } from "./appleSubscriberTypes";
 
 // Decode only responses fetched directly from Apple's authenticated HTTPS API.
 // Reporting only: this does not grant access or verify app-account ownership.
@@ -64,13 +64,18 @@ export async function getAppleSubscribers(environment: StoreEnvironment): Promis
   const accounts = new Map<string, AppleSubscriber>();
   const owners = new Map<string, Set<string>>();
   let untrackedPurchases = 0;
+  function flag(id: string, reason: AppleReviewReason) {
+    const row = accounts.get(id)!;
+    row.unavailablePurchases++;
+    row.reviewReasons = [...new Set([...(row.reviewReasons ?? []), reason])];
+  }
   for (const purchase of purchases) {
     const id = String(purchase.userId);
     const user = byUser.get(id);
     if (!accounts.has(id)) accounts.set(id, { id, name: user?.name ?? null, email: user?.email ?? null, subscriptions: [], unavailablePurchases: 0, conflict: false });
     if (typeof purchase.purchaseId !== "string" || !/^\d+$/.test(purchase.purchaseId)) {
       untrackedPurchases++;
-      accounts.get(id)!.unavailablePurchases++;
+      flag(id, "missing_id");
       continue;
     }
     const ids = owners.get(purchase.purchaseId) ?? new Set<string>();
@@ -87,13 +92,21 @@ export async function getAppleSubscribers(environment: StoreEnvironment): Promis
   await Promise.all(Array.from({ length: Math.min(4, entries.length) }, async () => {
     while (cursor < entries.length) {
       const [transactionId, ids] = entries[cursor++];
+      let reason: AppleReviewReason = "temporarily_unavailable";
       try {
         if (signal.aborted || configurationFailure) throw new Error("Check unavailable");
         const response = await request!(`/inApps/v1/subscriptions/${transactionId}`, { signal });
         if (response.status === 401 || response.status === 403) configurationFailure = true;
-        if (!response.ok) throw new Error("Check unavailable");
+        if (!response.ok) {
+          if (response.status === 404) reason = "not_found";
+          throw new Error("Check unavailable");
+        }
+        reason = "invalid_response";
         const subscriptions = mapAppleSubscriptions(await response.json(), environment);
         checkedPurchases++;
+        if (!subscriptions.length) {
+          for (const id of ids) flag(id, "no_subscription");
+        }
         for (const subscription of subscriptions) {
           const associated = chainOwners.get(subscription.originalTransactionId) ?? new Set<string>();
           for (const id of ids) {
@@ -106,7 +119,7 @@ export async function getAppleSubscribers(environment: StoreEnvironment): Promis
           chainOwners.set(subscription.originalTransactionId, associated);
         }
       } catch {
-        for (const id of ids) accounts.get(id)!.unavailablePurchases++;
+        for (const id of ids) flag(id, reason);
       }
     }
   }));

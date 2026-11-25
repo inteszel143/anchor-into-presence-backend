@@ -97,3 +97,26 @@ test('subscriber endpoint requires admin auth, validates environment, and disabl
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal((await response.json()).environment, 'sandbox');
 });
+
+test('review reasons distinguish missing information, lookup failures and invalid responses without guessing test status', async () => {
+  for (const [response, reason] of [
+    [() => new Response('', { status: 404 }), 'not_found'],
+    [() => new Response('', { status: 503 }), 'temporarily_unavailable'],
+    [() => Response.json({}), 'invalid_response'],
+    [() => Response.json({ bundleId: 'app.test', environment: 'Production', data: [] }), 'no_subscription'],
+  ]) {
+    const result = await service([{ userId: 'a', purchaseId: '101' }, { userId: 'a' }], async () => response()).getAppleSubscribers('production');
+    assert.deepEqual(Array.from(result.subscribers[0].reviewReasons).sort(), ['missing_id', reason].sort());
+    assert.equal(result.totals.needsReview, 1);
+    assert.equal(result.totals.inactive, 0);
+    assert.equal(result.totals.active, 0);
+  }
+});
+test('an account with a verified active subscription can also have a verification issue', async () => {
+  const result = await service([{ userId: 'a', purchaseId: '101' }, { userId: 'a', purchaseId: '102' }],
+    async endpoint => endpoint.endsWith('101') ? Response.json(body()) : new Response('', { status: 404 })).getAppleSubscribers('production');
+  assert.equal(result.totals.active, 1);
+  assert.equal(result.totals.needsReview, 1);
+  assert.equal(result.subscribers.length, 1);
+  assert.deepEqual(Array.from(result.subscribers[0].reviewReasons), ['not_found']);
+});
