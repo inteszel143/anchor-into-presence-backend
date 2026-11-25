@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { RefreshCw } from "lucide-react";
-import type { StoreEnvironment } from "@/lib/appStoreOffers";
 import shared from "../users/users.module.css";
 import styles from "./offers.module.css";
 import AppleSubscribersReport from "./AppleSubscribersReport";
@@ -31,16 +29,5 @@ export default function PromotionalOffersPage() {
 }
 
 function AppleOffersReport() {
-  const [environment, setEnvironment] = useState<StoreEnvironment>("production");
-  const [refresh, setRefresh] = useState(0);
-  return <div className={shared.page}>
-    <div className={shared.heading}>
-      <div><p className={shared.eyebrow}>Apple App Store</p><h1>Promotional offers</h1><p className={shared.subtitle}>Subscribers with offers checked directly with Apple.</p></div>
-      <div className={styles.controls}>
-        <label htmlFor="store-environment">App Store environment<select id="store-environment" value={environment} onChange={event => setEnvironment(event.target.value as StoreEnvironment)}><option value="production">Production</option><option value="sandbox">Sandbox</option></select></label>
-        <button type="button" className={styles.reviewButton} onClick={() => setRefresh(value => value + 1)}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
-      </div>
-    </div>
-    <AppleSubscribersReport key={environment} offersOnly environment={environment} refreshKey={refresh} />
-  </div>;
+  return <div className={shared.page}><AppleSubscribersReport offersOnly /></div>;
 }

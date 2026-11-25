@@ -65,13 +65,14 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
   ].filter(item => item.count > 0);
   const pages = Math.max(1, Math.ceil(rows.length / 25));
   const selectedPage = Math.min(page, pages);
+  const reportControls = <div className={styles.controls}>
+        <label htmlFor="subscriber-environment">Environment<select id="subscriber-environment" value={environment} onChange={event => { setEnvironment(event.target.value as StoreEnvironment); setSearch(""); setStatus(""); }}><option value="production">Production</option><option value="sandbox">Sandbox</option></select></label>
+        <button type="button" className={styles.reviewButton} disabled={loading} onClick={() => setRefresh(n => n + 1)}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
+      </div>;
   return <div className={`${shared.page} ${offersOnly ? styles.embeddedSubscribers : ""}`}>
     {!offersOnly && <><div className={shared.heading}>
       <div><p className={shared.eyebrow}>Apple App Store</p><h1>Subscribers</h1><p className={shared.subtitle}>Regular subscriptions, trials, and offers, checked directly with Apple.</p></div>
-      <div className={styles.controls}>
-        <label htmlFor="subscriber-environment">Environment<select id="subscriber-environment" value={environment} onChange={event => { setEnvironment(event.target.value as StoreEnvironment); setSearch(""); setStatus(""); }}><option value="production">Production</option><option value="sandbox">Sandbox</option></select></label>
-        <button type="button" className={styles.reviewButton} disabled={loading} onClick={() => setRefresh(n => n + 1)}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
-      </div>
+      {reportControls}
     </div>
     <div className={styles.notice}><Users size={20} aria-hidden="true" /><p>Totals count unique app accounts with Apple-confirmed subscriptions, including expired subscriptions. Active includes billing grace periods. Coverage is limited to purchases saved by the app; this is not an App Store-wide total. Names and emails come from app accounts.</p></div>
     <div className={styles.metrics}>
@@ -91,7 +92,7 @@ export default function AppleSubscribersReport({ offersOnly = false, environment
       <p className={styles.help}>An account can have more than one issue. The list below shows the reason and next step for each affected account.</p>
     </section>}
     <section className={shared.card} aria-label={offersOnly ? "Apple offer subscribers" : "Apple subscribers"} aria-busy={loading}>
-      <div className={styles.sectionHeading}><div><h2>{offersOnly ? "Subscribers with promotional offers" : "Subscriber list"}</h2><p>{offersOnly ? "Offer-code, promotional-offer, and win-back subscriptions checked directly with Apple, including those missing from notification history. One row per app account; this does not confirm the exact code used." : "One row per app account. Renewals do not increase subscriber totals."}</p></div></div>
+      <div className={styles.sectionHeading}><div><h2>{offersOnly ? "Subscribers with promotional offers" : "Subscriber list"}</h2><p>{offersOnly ? "Offer-code, promotional-offer, and win-back subscriptions checked directly with Apple, including those missing from notification history. One row per app account; this does not confirm the exact code used." : "One row per app account. Renewals do not increase subscriber totals."}</p></div>{offersOnly && reportControls}</div>
       {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load subscribers</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(n => n + 1)}>Try again</button></div> : loading ? <OfferTableSkeleton columns={3} label="Checking subscribers with Apple…" /> : <>
         <div className={`${shared.filters} ${styles.filters}`}>
           <label className={shared.searchLabel} htmlFor="subscriber-search">Search subscribers<span className={shared.searchField}><Search size={18} aria-hidden="true" /><input id="subscriber-search" type="search" placeholder="Name, email, product, or transaction" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></span></label>

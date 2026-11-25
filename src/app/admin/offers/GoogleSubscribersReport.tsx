@@ -65,14 +65,15 @@ export default function GoogleSubscribersReport({ offersOnly = false }: { offers
   const selectedUnknownPage = Math.min(unknownPage, unknownPages);
   const pages = Math.max(1, Math.ceil(rows.length / 25));
   const selectedPage = Math.min(page, pages);
-  return <div className={shared.page}>
-    <div className={shared.heading}>
-      <div><p className={shared.eyebrow}>Google Play</p><h1>{offersOnly ? "Promotional offers" : "Subscribers"}</h1><p className={shared.subtitle}>{offersOnly ? "Subscribers with offers checked directly with Google." : "Verified subscription status, with unverified purchases listed separately."}</p></div>
-      <div className={styles.controls}>
+  const reportControls = <div className={styles.controls}>
         <label htmlFor="subscriber-environment">Environment<select id="subscriber-environment" value={environment} onChange={event => { setEnvironment(event.target.value as GooglePlayEnvironment); setSearch(""); setStatus(""); setUnknownSearch(""); setUnknownPage(1); }}><option value="production">Production</option><option value="test">Test purchases</option></select></label>
         <button type="button" className={styles.reviewButton} disabled={loading} onClick={() => setRefresh(n => n + 1)}><RefreshCw size={16} aria-hidden="true" />Refresh</button>
-      </div>
-    </div>
+      </div>;
+  return <div className={shared.page}>
+    {!offersOnly && <div className={shared.heading}>
+      <div><p className={shared.eyebrow}>Google Play</p><h1>{offersOnly ? "Promotional offers" : "Subscribers"}</h1><p className={shared.subtitle}>{offersOnly ? "Subscribers with offers checked directly with Google." : "Verified subscription status, with unverified purchases listed separately."}</p></div>
+      {reportControls}
+    </div>}
     {!offersOnly && <><div className={styles.notice}><Users size={20} aria-hidden="true" /><p>Totals count unique app accounts linked to saved subscriptions checked with Google, including regular plans, trials, and offers. Active includes grace periods and canceled subscriptions with time remaining. These are not Play Store-wide totals. Users dashboard totals use purchase-date estimates and may differ.</p></div>
     <div className={styles.metrics}>
       {[
@@ -87,7 +88,7 @@ export default function GoogleSubscribersReport({ offersOnly = false }: { offers
     {current && <details className={styles.notice}><summary>Verification details</summary><p>{current.unavailablePurchases} Google checks were unavailable; {current.unmatchedItems} subscription items could not be linked to one app account. Subscriber totals cover available checks only and may be incomplete. These verification results do not change a customer’s app access.</p></details>}
     </>}
     <section className={shared.card} aria-label={offersOnly ? "Google offer subscribers" : "Google subscribers"} aria-busy={loading}>
-      <div className={styles.sectionHeading}><div><h2>{offersOnly ? "Subscribers with promotional offers" : "Subscriber list"}</h2><p>{offersOnly ? "Subscription offers and promo codes checked with Google, grouped by app account. Coverage is limited to saved purchases matched to an account; an offer does not mean its discount is still running." : "One row per app account with a Google subscription check. Purchases with unknown status are listed separately below."}</p></div></div>
+      <div className={styles.sectionHeading}><div><h2>{offersOnly ? "Subscribers with promotional offers" : "Subscriber list"}</h2><p>{offersOnly ? "Subscription offers and promo codes checked with Google, grouped by app account. Coverage is limited to saved purchases matched to an account; an offer does not mean its discount is still running." : "One row per app account with a Google subscription check. Purchases with unknown status are listed separately below."}</p></div>{offersOnly && reportControls}</div>
       {error ? <div className={shared.empty} role="alert"><h2>Couldn’t load subscribers</h2><p>{error}</p><button type="button" className={shared.textButton} onClick={() => setRefresh(n => n + 1)}>Try again</button></div> : loading ? <OfferTableSkeleton columns={3} label="Checking subscribers with Google…" /> : <>
         <div className={`${shared.filters} ${styles.filters}`}>
           <label className={shared.searchLabel} htmlFor="subscriber-search">Search subscribers<span className={shared.searchField}><Search size={18} aria-hidden="true" /><input id="subscriber-search" type="search" placeholder={offersOnly ? "Name, email, product, offer, or code" : "Name, email, product, or transaction"} value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} /></span></label>
