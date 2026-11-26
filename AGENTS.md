@@ -7,3 +7,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Advertising project memory
+
+Read `docs/integrations/advertising-roadmap.md` before advertising or analytics work.
+The user confirmed on 2026-11-26 that Meta app/backend integration comes first,
+then other platforms should reuse the shared backend structure. Google and YouTube
+share a connector. Preserve store verification, consent, and duplicate protections;
+do not interpret this roadmap as authorization to activate integrations or deploy.
+Current shared contracts and the Meta adapter are preparation, not a completed
+multi-platform attribution system. Keep this status accurate as work progresses.

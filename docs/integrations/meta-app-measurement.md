@@ -3,6 +3,13 @@
 Status: implementation is disabled by default. No deployment, Meta asset setup,
 campaign publishing, or production event validation is implied by this change.
 
+The agreed rollout and assessment are saved in [Advertising roadmap](advertising-roadmap.md).
+The backend now maps verified payments into shared events (`advertising/events.ts`)
+and delegates Meta formatting and transport to `advertising/adapters/meta.ts`.
+Existing flags, ledger keys, Meta order IDs, consent checks, and the single Meta
+delivery state remain in place. Additional destinations require independent
+delivery records before enabling fan-out; interfaces alone do not provide that.
+
 ## Data flow
 
 The Flutter bridge uses Meta's native SDK to activate the app only after consent.

@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { subscriptionPlan } from '../subscriptionPlan';
+import { verifiedPurchaseEvent } from './events';
+import { metaPurchasePayload } from './adapters/meta';
 
 export type Payment = {
   key: string; platform: 'ios' | 'android'; transactionId: string; originalId: string;
@@ -42,9 +44,6 @@ export function googlePayment(o: Record<string, any>, token: string, production:
     renewal: /\.\.\d+$/.test(o.orderId), production });
 }
 export function metaEvent(p: Payment) {
-  if (!p.production || p.value <= 0) throw new Error('Only production paid transactions can be advertised');
-  return { _eventName: 'fb_mobile_purchase', _logTime: Math.floor(p.purchasedAt / 1000),
-    _valueToSum: p.value, fb_currency: p.currency, fb_content_id: p.productId,
-    fb_content_type: 'product', fb_order_id: p.key, subscription_plan: p.plan,
-    payment_kind: p.renewal ? 'renewal' : 'initial' };
+  // Compatibility entry point for existing callers; mapping belongs to the adapter.
+  return metaPurchasePayload(verifiedPurchaseEvent(p));
 }

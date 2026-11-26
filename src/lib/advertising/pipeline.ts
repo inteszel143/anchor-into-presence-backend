@@ -4,7 +4,9 @@ import { UserPurchase } from '@/models/UserPurchase';
 import { User } from '@/models/User';
 import { createAppStoreClient } from '../appStoreOffers';
 import { accessToken } from '../googlePlayOffers';
-import { applePayment, googlePayment, metaEvent, paymentKey, type Payment } from './payment';
+import { applePayment, googlePayment, paymentKey, type Payment } from './payment';
+import { verifiedPurchaseEvent } from './events';
+import { createMetaAdapter } from './adapters/meta';
 
 export async function enqueuePayment(input: { platform: string; transactionId?: string; purchaseToken?: string; userId?: unknown; productId?: string; notificationId?: string }) {
   const reference = input.notificationId ?? input.transactionId ?? input.purchaseToken;
@@ -115,6 +117,7 @@ export async function runAdvertisingWorker(limit = 10) {
   if (process.env.META_DELIVERY_ENABLED !== 'true') return { verified, deliveryDisabled: true };
   const { META_APP_ID: appId, META_APP_ACCESS_TOKEN: token, META_GRAPH_VERSION: version } = process.env;
   if (!appId || !/^\d+$/.test(appId) || !token || !/^v\d+\.0$/.test(version ?? '')) throw new Error('Meta delivery configuration missing');
+  const adapter = createMetaAdapter({ appId, accessToken: token, graphVersion: version! });
   let sent = 0;
   for (let i = 0; i < limit; i++) {
     // A single sender owns a payment. Never automatically replay an ambiguous
@@ -129,18 +132,14 @@ export async function runAdvertisingWorker(limit = 10) {
       continue;
     }
     try {
-      const response = await fetch(`https://graph.facebook.com/${version}/${appId}/activities`, {
-        method: 'POST', signal: AbortSignal.timeout(15000), redirect: 'error',
-        body: new URLSearchParams({ access_token: token, event: 'CUSTOM_APP_EVENTS',
-          anon_id: row.anonId, advertiser_tracking_enabled: '1', application_tracking_enabled: '1',
-          custom_events: JSON.stringify([metaEvent(row.toObject() as Payment)]), }),
+      const result = await adapter.deliver(verifiedPurchaseEvent(row.toObject() as Payment), {
+        advertisingAllowed: true, destinationAnonymousId: row.anonId,
       });
-      const body = await response.json();
-      if (!response.ok || body.success !== true) {
-        await AdPayment.updateOne({ _id: row._id }, { $set: { state: 'review', error: `Meta rejected delivery (HTTP ${response.status})` } });
-      } else {
+      if (result.state === 'sent') {
         await AdPayment.updateOne({ _id: row._id }, { $set: { state: 'sent' }, $unset: { error: 1 } });
         sent++;
+      } else {
+        await AdPayment.updateOne({ _id: row._id }, { $set: result });
       }
     } catch {
       await AdPayment.updateOne({ _id: row._id }, { $set: { state: 'uncertain', error: 'Delivery outcome unknown; reconcile before replay' } });

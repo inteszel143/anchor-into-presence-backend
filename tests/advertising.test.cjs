@@ -10,7 +10,7 @@ function load(file, mocks = {}, env = {}, globals = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true },
   }).outputText;
   vm.runInNewContext(code, { exports, process: { env }, Date, Buffer, URLSearchParams, AbortSignal, ...globals,
-    require: n => mocks[n] ?? (n.startsWith('.') ? load(path.join(path.dirname(file), n + '.ts')) : require(n)),
+    require: n => mocks[n] ?? (n.startsWith('.') ? load(path.join(path.dirname(file), n + '.ts'), {}, env, globals) : require(n)),
   });
   return exports;
 }
@@ -122,4 +122,61 @@ test('explicit Meta rejection is visible for review', async () => {
 test('delivery flag leaves verified payments queued without contacting Meta', async () => {
   const d = delivery({ deliveryEnabled: false }); await d.pipeline.runAdvertisingWorker();
   assert.equal(d.calls.length, 0); assert.equal(d.row.state, 'pending');
+});
+
+const shared = load('lib/advertising/events.ts');
+test('canonical purchase IDs survive retries and separate stores and environments without exposing customer data', () => {
+  const payment = p.applePayment(apple(), 'app');
+  const event = shared.verifiedPurchaseEvent({ ...payment, userId: 'private-user', email: 'private-email', purchaseToken: 'private-token' });
+  assert.equal(event.id, shared.verifiedPurchaseEvent(payment).id);
+  assert.equal(event.id, shared.verifiedPurchaseEvent({ ...payment, renewal: true }).id);
+  assert.notEqual(event.id, shared.verifiedPurchaseEvent({ ...payment, production: false }).id);
+  assert.notEqual(event.id, shared.verifiedPurchaseEvent({ ...payment, platform: 'android' }).id);
+  assert.equal(event.payment.reference, payment.key);
+  assert.equal(event.type, 'subscription_purchased');
+  assert.equal(shared.verifiedPurchaseEvent({ ...payment, renewal: true }).type, 'subscription_renewed');
+  assert.ok(Object.isFrozen(event)); assert.ok(Object.isFrozen(event.payment));
+  assert.ok(!JSON.stringify(event).includes('private-'));
+  for (const change of [{ value: NaN }, { value: -1 }, { currency: '$' }, { plan: 'unknown' }, { purchasedAt: 0 }, { production: 'false' }]) {
+    assert.throws(() => shared.verifiedPurchaseEvent({ ...payment, ...change }));
+  }
+});
+
+test('future delivery keys are destination and account specific; free and sandbox events remain available internally', () => {
+  const payment = p.applePayment(apple(), 'app');
+  const event = shared.verifiedPurchaseEvent({ ...payment, value: 0, production: false });
+  assert.equal(event.payment.value, 0); assert.equal(event.environment, 'sandbox');
+  const keys = ['meta', 'tiktok', 'google_ads'].map(dest => shared.eventDeliveryKey(event.id, dest, 'account'));
+  assert.equal(new Set(keys).size, 3);
+  assert.notEqual(keys[0], shared.eventDeliveryKey(event.id, 'meta', 'other-account'));
+  assert.equal(keys[0], shared.eventDeliveryKey(event.id, 'meta', 'account'));
+  assert.throws(() => shared.eventDeliveryKey(event.id, 'youtube', 'account'));
+});
+
+test('shared Meta adapter preserves the existing purchase payload exactly', () => {
+  for (const payment of [p.applePayment(apple(), 'app'), p.googlePayment(google(), 'token', true)]) {
+    const actual = JSON.parse(JSON.stringify(p.metaEvent(payment)));
+    assert.deepEqual(actual, {
+      _eventName: 'fb_mobile_purchase', _logTime: Math.floor(payment.purchasedAt / 1000),
+      _valueToSum: payment.value, fb_currency: payment.currency, fb_content_id: payment.productId,
+      fb_content_type: 'product', fb_order_id: payment.key, subscription_plan: payment.plan,
+      payment_kind: payment.renewal ? 'renewal' : 'initial',
+    });
+  }
+});
+
+test('adapter rejects missing consent, identity, free, sandbox and stale events without network calls', async () => {
+  const { createMetaAdapter } = load('lib/advertising/adapters/meta.ts');
+  const adapter = createMetaAdapter({ appId: '123', accessToken: 'secret', graphVersion: 'v24.0' },
+    async () => { throw new Error('Network must not be called'); });
+  const payment = p.applePayment(apple(), 'app');
+  const context = { advertisingAllowed: true, destinationAnonymousId: 'anonymous' };
+  for (const [change, ctx] of [
+    [{}, { ...context, advertisingAllowed: false }], [{}, { advertisingAllowed: true }],
+    [{ value: 0 }, context], [{ production: false }, context],
+    [{ purchasedAt: Date.now() - 8 * 86400000 }, context],
+  ]) {
+    const result = await adapter.deliver(shared.verifiedPurchaseEvent({ ...payment, ...change }), ctx);
+    assert.equal(result.state, 'excluded');
+  }
 });
